@@ -12,6 +12,7 @@ import { MobileHeader } from '../navigation/MobileHeader'
 import { Background3D } from '../three/Background3D'
 import { BackgroundOrganic } from './BackgroundOrganic'
 import { CommandPalette } from '../controls/CommandPalette'
+import { ErrorBoundary } from '../feedback/ErrorBoundary'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -30,8 +31,12 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Layer 2: Botanical illustrations */}
       {!isLanding && <BackgroundOrganic />}
       
-      {/* Layer 3: Floating 3D objects */}
-      {!isLanding && <Background3D />}
+      {/* Layer 3: Floating 3D objects — wrapped to catch WebGL context loss */}
+      {!isLanding && (
+        <ErrorBoundary fallback={<div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(ellipse at 30% 50%, rgba(196,181,253,0.08), transparent)' }} />}>
+          <Background3D />
+        </ErrorBoundary>
+      )}
 
       {/* Layer 4 & 5: Glass dashboard & Content */}
       <div style={{ display: 'flex', width: '100%', position: 'relative', zIndex: 10 }}>
@@ -51,10 +56,12 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Top bar — desktop only, Mobile Header otherwise, except landing */}
         {!isLanding && (isDesktop ? <TopBar /> : <MobileHeader />)}
 
-        {/* Content */}
+        {/* Content — page transition via key + CSS animation */}
         <main
           id="main-content"
           role="main"
+          key={location.pathname}
+          className="page-enter"
           style={{
             flex: 1,
             paddingTop: isLanding ? 0 : (isDesktop ? 64 : 56),
@@ -62,7 +69,9 @@ export function AppLayout({ children }: AppLayoutProps) {
             background: 'transparent',
           }}
         >
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
       </div>
 
