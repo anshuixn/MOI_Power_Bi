@@ -1,0 +1,389 @@
+/* ============================================================
+   ReviewBand Design System v2 — Purple Glassmorphism
+   Reference: Lilac + Mint green, frosted glass cards,
+              floating 3D sphere, neumorphic depth
+   ============================================================ */
+
+@import '@fontsource-variable/inter';
+@import 'tailwindcss';
+
+@theme {
+  /* ── Brand Colors ──────────────────────────────────────── */
+  --color-brand:           #7C3AED;   /* Purple primary */
+  --color-brand-mid:       #A855F7;   /* Lighter purple */
+  --color-brand-soft:      #EDE9FE;   /* Purple tint */
+  --color-brand-xsoft:     #F5F3FF;   /* Very light purple */
+
+  --color-accent-green:    #10B981;   /* Mint green */
+  --color-accent-green-s:  #D1FAE5;   /* Mint soft */
+  --color-accent-lavender: #C4B5FD;   /* Lavender */
+
+  /* ── Sentiment Colors ──────────────────────────────────── */
+  --color-positive:        #10B981;
+  --color-positive-soft:   #D1FAE5;
+  --color-neutral:         #C4B5FD;   /* Lavender for neutral */
+  --color-neutral-soft:    #EDE9FE;
+  --color-negative:        #F87171;
+  --color-negative-soft:   #FEE2E2;
+  --color-warning:         #FBBF24;
+  --color-warning-soft:    #FEF3C7;
+
+  /* ── Surface Colors ────────────────────────────────────── */
+  --color-ground:          #F4F2F8;
+  --color-white:           #FFFFFF;
+
+  /* ── Text Colors ───────────────────────────────────────── */
+  --color-text-primary:    #1C1033;
+  --color-text-secondary:  #4B4466;
+  --color-text-muted:      #8B83A3;
+
+  /* ── Shadows ───────────────────────────────────────────── */
+  --shadow-card:   0 4px 24px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(124, 58, 237, 0.04);
+  --shadow-raised: 0 8px 40px rgba(124, 58, 237, 0.10), 0 2px 6px rgba(0,0,0,0.04);
+  --shadow-float:  0 20px 60px rgba(124, 58, 237, 0.15), 0 4px 12px rgba(0,0,0,0.06);
+
+  /* ── Radius ────────────────────────────────────────────── */
+  --radius-card: 20px;
+  --radius-inner: 12px;
+  --radius-pill: 9999px;
+  --radius-sm: 8px;
+
+  /* ── Spacing (4px base) ────────────────────────────────── */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px; --space-5: 20px; --space-6: 24px;
+  --space-8: 32px; --space-10: 40px; --space-12: 48px;
+  --space-16: 64px;
+
+  /* ── Typography ────────────────────────────────────────── */
+  --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', monospace;
+
+  /* ── Z-index ───────────────────────────────────────────── */
+  --z-sidebar: 20;
+  --z-topbar:  30;
+  --z-overlay: 40;
+  --z-modal:   50;
+  --z-tooltip: 60;
+}
+
+/* ══════════════════════════════════════════════════════════
+   BASE RESET + GLOBAL STYLES
+   ══════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-ground);
+  color: var(--color-text-primary);
+  line-height: 1.5;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* ══════════════════════════════════════════════════════════
+   3D AMBIENT BACKGROUND
+   ══════════════════════════════════════════════════════════ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -100px; /* Oversized to prevent blur edges */
+  z-index: -2;
+  /* Base: warm off-white/extremely light lavender */
+  background-color: #FDFBFF;
+  
+  /* Layered ambient light: blurred heavily, pale purple, soft mint, peach */
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(196, 181, 253, 0.40) 0%, transparent 50%),
+    radial-gradient(circle at 85% 15%, rgba(167, 243, 208, 0.25) 0%, transparent 60%),
+    radial-gradient(circle at 80% 85%, rgba(208, 188, 255, 0.35) 0%, transparent 50%),
+    radial-gradient(circle at 15% 90%, rgba(251, 207, 232, 0.25) 0%, transparent 60%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.80) 0%, transparent 70%);
+  
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+/* Subtle background pattern layer (Layer 1b) */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  /* Very faint grain + subtle wave pattern to add texture */
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 50 Q 25 30, 50 50 T 100 50' fill='none' stroke='rgba(196, 181, 253, 0.05)' stroke-width='0.5'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* Remove old static sphere CSS as we now use React Three Fiber */
+.rb-sphere {
+  display: none;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PHASE 11, 12 & 13: ADVANCED GLASSMORPHISM & INTERACTIONS
+   ══════════════════════════════════════════════════════════ */
+
+/* Base surface for glass to ensure consistent blur */
+.glass-base {
+  border-radius: var(--radius-card);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: 
+    0 10px 30px rgba(109, 40, 217, 0.04),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 4px rgba(196, 181, 253, 0.1); /* Ambient purple reflection */
+}
+
+/* 1. Background Glass (Sidebar, Modals) */
+.glass-bg {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(40px) saturate(120%);
+  -webkit-backdrop-filter: blur(40px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+/* 2. Elevated Glass (Major Cards, Floating elements) */
+.card, .glass-card, .glass-elevated {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px) saturate(110%);
+  -webkit-backdrop-filter: blur(24px) saturate(110%);
+  border-radius: var(--radius-card);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  padding: var(--space-6);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: 
+    0 12px 32px rgba(109, 40, 217, 0.05),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 0 12px rgba(255, 255, 255, 0.5); /* Inner highlight */
+}
+
+/* 3. Secondary Glass (Inner containers, list items) */
+.glass, .glass-secondary {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.70);
+  box-shadow: 0 4px 12px rgba(109, 40, 217, 0.03);
+  transition: all 0.3s ease;
+}
+
+/* 4. Interactive/Active Glass (Buttons, active states) */
+.glass-interactive {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.glass-interactive:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 24px rgba(109, 40, 217, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 2px rgba(255, 255, 255, 1);
+}
+
+.glass-interactive:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 2px 8px rgba(109, 40, 217, 0.04);
+}
+
+/* 5. Strong Glass (Floating controls, dropdowns) */
+.glass-strong {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(40px) saturate(140%);
+  -webkit-backdrop-filter: blur(40px) saturate(140%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 16px 40px rgba(109, 40, 217, 0.12);
+}
+
+/* Hover elevation & perspective for Cards */
+.card.interactive:hover, .glass-card.interactive:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 
+    0 24px 48px rgba(109, 40, 217, 0.08),
+    0 8px 24px rgba(109, 40, 217, 0.04),
+    inset 0 1px 2px rgba(255, 255, 255, 1),
+    inset 0 -2px 10px rgba(196, 181, 253, 0.2); /* Edge lighting */
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 1);
+}
+
+/* Dimensional inner highlight stripe for major cards */
+.card::before, .glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 80px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, transparent 100%);
+  pointer-events: none;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  opacity: 0.5;
+  transition: opacity 0.4s ease;
+}
+
+.card:hover::before, .glass-card:hover::before {
+  opacity: 0.9;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TYPOGRAPHY UTILITIES
+   ══════════════════════════════════════════════════════════ */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.text-gradient-purple {
+  background: linear-gradient(135deg, #7C3AED, #A855F7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ══════════════════════════════════════════════════════════
+   COLOR UTILITIES
+   ══════════════════════════════════════════════════════════ */
+.text-brand      { color: var(--color-brand); }
+.text-positive   { color: var(--color-positive); }
+.text-negative   { color: var(--color-negative); }
+.text-neutral    { color: var(--color-neutral); }
+.text-muted      { color: var(--color-text-muted); }
+.text-secondary  { color: var(--color-text-secondary); }
+
+.bg-positive-soft  { background-color: var(--color-positive-soft); }
+.bg-negative-soft  { background-color: var(--color-negative-soft); }
+.bg-neutral-soft   { background-color: var(--color-neutral-soft); }
+.bg-brand-soft     { background-color: var(--color-brand-soft); }
+.bg-warning-soft   { background-color: var(--color-warning-soft); }
+
+/* ══════════════════════════════════════════════════════════
+   PILL BADGE
+   ══════════════════════════════════════════════════════════ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* ══════════════════════════════════════════════════════════
+   FOCUS RING
+   ══════════════════════════════════════════════════════════ */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   SCROLLBAR
+   ══════════════════════════════════════════════════════════ */
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.15);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.30);
+}
+
+/* ══════════════════════════════════════════════════════════
+   SKELETON LOADING
+   ══════════════════════════════════════════════════════════ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(196,181,253,0.12) 25%,
+    rgba(196,181,253,0.28) 50%,
+    rgba(196,181,253,0.12) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   LAYOUT
+   ══════════════════════════════════════════════════════════ */
+.page-section {
+  padding: var(--space-8);
+}
+
+.dashboard-grid-charts {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.dashboard-grid-bottom {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid-charts {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-grid-bottom {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .page-section { padding: var(--space-5); }
+  
+  .dashboard-grid-bottom {
+    grid-template-columns: 1fr;
+  }
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid rgba(196, 181, 253, 0.25);
+}
+
+/* ══════════════════════════════════════════════════════════
+   REDUCED MOTION
+   ══════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .rb-sphere { animation: none; }
+}

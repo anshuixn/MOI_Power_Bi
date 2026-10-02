@@ -1,0 +1,234 @@
+
+> innovate@0.0.0 lint
+> oxlint
+
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+     ,-[src/hooks/useApp.tsx:157:17]
+ 156 | // ── Hook ──────────────────────────────────────────────────────
+ 157 | export function useApp() {
+     :                 ^^^^^^
+ 158 |   const ctx = useContext(AppContext)
+     `----
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+     ,-[src/hooks/useApp.tsx:99:7]
+  95 |   // Detect performance tier on mount
+  96 |   useEffect(() => {
+     :   ^^^^|^^^^
+     :       `-- This is the containing effect
+  97 |     const stored = loadSettings()
+  98 |     if (stored.performanceTier === 'auto') {
+  99 |       setPerformanceTier(detectPerformanceTier())
+     :       ^^^^^^^^^|^^^^^^^^
+     :                `-- Avoid calling setState() directly within an effect
+ 100 |     } else {
+     `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+     ,-[src/hooks/useApp.tsx:108:5]
+ 105 |   // Listen to reduced motion preference
+ 106 |   useEffect(() => {
+     :   ^^^^|^^^^
+     :       `-- This is the containing effect
+ 107 |     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+ 108 |     setPrefersReducedMotion(mq.matches)
+     :     ^^^^^^^^^^^|^^^^^^^^^^^
+     :                `-- Avoid calling setState() directly within an effect
+ 109 |     const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
+     `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react-hooks(exhaustive-deps): React Hook useMemo has a missing dependency: 'setFilters'
+     ,-[src/hooks/useApp.tsx:151:7]
+ 144 |     filters,
+ 145 |     setFilters,
+     :     ^^^^^|^^^^
+     :          `-- useMemo uses `setFilters` here
+ 146 |     updateFilter,
+ 147 |     settings,
+ 148 |     updateSettings,
+ 149 |     performanceTier: settings.performanceTier === 'auto' ? performanceTier : settings.performanceTier,
+ 150 |     prefersReducedMotion: prefersReducedMotion || settings.reducedMotion,
+ 151 |   }), [filters, settings, updateFilter, updateSettings, performanceTier, prefersReducedMotion])
+     :       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 152 | 
+     `----
+  help: Either include it or remove the dependency array.
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/hooks/useAnalytics.ts:33:10]
+ 31 | 
+ 32 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 33 |     void load()
+    :          ^^|^
+    :            `-- Avoid calling setState() directly within an effect
+ 34 |   }, [load])
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/components/controls/DatePicker.tsx:26:5]
+ 24 |   // Sync state if filter changes externally
+ 25 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 26 |     setTempRange(filters.dateRange as DateRangeType)
+    :     ^^^^^^|^^^^^
+    :           `-- Avoid calling setState() directly within an effect
+ 27 |   }, [filters.dateRange])
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react(only-export-components): Fast refresh only works when a file has exports. Move your component(s) to a separate file.
+    ,-[src/main.tsx:22:10]
+ 21 | 
+ 22 | function App() {
+    :          ^^^
+ 23 |   return (
+    `----
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/hooks/useMediaQuery.ts:15:5]
+ 12 | 
+ 13 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 14 |     const mq = window.matchMedia(query)
+ 15 |     setMatches(mq.matches)
+    :     ^^^^^|^^^^
+    :          `-- Avoid calling setState() directly within an effect
+ 16 |     const handler = (e: MediaQueryListEvent) => setMatches(e.matches)
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react(purity): Cannot call impure function during render
+    ,-[src/components/dashboard/RecentInsights.tsx:32:37]
+ 31 |         // Time ago string
+ 32 |         const minsAgo = Math.round((Date.now() - new Date(insight.generatedAt).getTime()) / 60000)
+    :                                     ^^^^^|^^^^
+    :                                          `-- Cannot call impure function
+ 33 |         const timeLabel = minsAgo < 60
+    `----
+  help: `Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component re-renders
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/purity
+
+  ! react(set-state-in-effect): Calling setState synchronously within an effect can trigger cascading renders
+    ,-[src/components/controls/CommandPalette.tsx:60:7]
+ 56 |   // Focus trap and navigation
+ 57 |   useEffect(() => {
+    :   ^^^^|^^^^
+    :       `-- This is the containing effect
+ 58 |     if (isOpen) {
+ 59 |       setTimeout(() => inputRef.current?.focus(), 10)
+ 60 |       setSelectedIndex(0)
+    :       ^^^^^^^^|^^^^^^^
+    :               `-- Avoid calling setState() directly within an effect
+ 61 |     }
+    `----
+  help: Effects should synchronize React with external systems. Calling setState synchronously inside an effect starts another render and is usually unnecessary. Derive the value during render, initialize state directly, or update it from the event that caused the change. Use an effect only when synchronizing with an external system.
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect
+
+  ! react(purity): Cannot call impure function during render
+    ,-[src/components/charts/StarRating.tsx:22:33]
+ 21 |         const fill = Math.max(0, Math.min(1, rating - i))
+ 22 |         const id = `star-${i}-${Math.random().toString(36).slice(2, 6)}`
+    :                                 ^^^^^^|^^^^^^
+    :                                       `-- Cannot call impure function
+ 23 |         return (
+    `----
+  help: `Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component re-renders
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/purity
+
+  ! react(static-components): Cannot create components during render
+    ,-[src/components/navigation/Logo.tsx:12:16]
+ 11 | export function ReviewBandLogo({ variant = 'full', size = 32, className = '' }: LogoProps) {
+ 12 |   const Mark = () => (
+    :                ^|
+    :                 `-- The component is created during render here
+ 13 |     <svg
+    `----
+    ,-[src/components/navigation/Logo.tsx:39:13]
+ 38 |   if (variant === 'mark') {
+ 39 |     return <Mark />
+    :             ^^|^
+    :               `-- This component is created during render
+ 40 |   }
+    `----
+  help: Components created during render will reset their state each time they are created. Declare components outside of render
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/static-components
+
+  ! react(static-components): Cannot create components during render
+    ,-[src/components/navigation/Logo.tsx:12:16]
+ 11 | export function ReviewBandLogo({ variant = 'full', size = 32, className = '' }: LogoProps) {
+ 12 |   const Mark = () => (
+    :                ^|
+    :                 `-- The component is created during render here
+ 13 |     <svg
+    `----
+    ,-[src/components/navigation/Logo.tsx:44:8]
+ 43 |     <div className={`flex items-center gap-2 ${className}`}>
+ 44 |       <Mark />
+    :        ^^|^
+    :          `-- This component is created during render
+ 45 |       <span
+    `----
+  help: Components created during render will reset their state each time they are created. Declare components outside of render
+  note: React Compiler skipped optimizing this component or hook. Additional guidance: https://react.dev/reference/eslint-plugin-react-hooks/lints/static-components
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+    ,-[src/components/feedback/Toast.tsx:26:17]
+ 25 | 
+ 26 | export function useToast() {
+    :                 ^^^^^^^^
+ 27 |   const ctx = useContext(ToastContext)
+    `----
+
+  x react-hooks(rules-of-hooks): React Hook "useRef" is called conditionally. React Hooks must be called in the exact same order in every component render.
+    ,-[src/components/charts/Sparkline.tsx:18:19]
+ 17 | 
+ 18 |   const lineRef = useRef<SVGPathElement>(null)
+    :                   ^^^^^^^^^^^^^^|^^^^^^^^^^^^^
+    :                                 `-- This Hook call is not reachable on every render path.
+ 19 | 
+    `----
+  help: Move the Hook call before the condition, or call it unconditionally and branch inside the Hook/effect instead.
+
+  ! react-hooks(exhaustive-deps): React Hook useEffect has a complex expression in the dependency array.
+    ,-[src/components/charts/Sparkline.tsx:52:7]
+ 51 |     })
+ 52 |   }, [data.join(',')])
+    :       ^^^^^^^^^^^^^^
+ 53 | 
+    `----
+  help: Extract the expression to a separate variable so it can be statically checked.
+
+  x react-hooks(rules-of-hooks): React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render.
+    ,-[src/components/charts/Sparkline.tsx:42:3]
+ 41 |       // Draw-on animation
+ 42 | ,->   useEffect(() => {
+ 43 | |       const el = lineRef.current
+ 44 | |       if (!el) return
+ 45 | |       const length = el.getTotalLength()
+ 46 | |       el.style.strokeDasharray = `${length}`
+ 47 | |       el.style.strokeDashoffset = `${length}`
+ 48 | |       el.style.transition = 'stroke-dashoffset 0.9s cubic-bezier(0.25, 1, 0.5, 1) 0.1s'
+ 49 | |       requestAnimationFrame(() => {
+ 50 | |         el.style.strokeDashoffset = '0'
+ 51 | |       })
+ 52 | |->   }, [data.join(',')])
+    : `---- This Hook call is not reachable on every render path.
+ 53 |     
+    `----
+  help: Move the Hook call before the condition, or call it unconditionally and branch inside the Hook/effect instead.
+
+Found 15 warnings and 2 errors.
+Finished in 11ms on 47 files with 116 rules using 10 threads.
