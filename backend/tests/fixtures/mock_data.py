@@ -1,4 +1,4 @@
-"""Deterministic mock dataset aligned to the ReviewBand React frontend."""
+"""Deterministic fixture data used only by API contract tests."""
 
 PRODUCTS = [
     {"id": "aero-blender", "name": "Aero Blender", "sku": "AB-1001", "category": "Kitchen"},

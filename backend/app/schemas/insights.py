@@ -127,7 +127,7 @@ class AnalyticsSummary(BaseModel):
     complaints: list[Complaint]
     recent_insights: list[Insight]
     spotlight_review: Review | None = None
-    model_health: ModelHealth
+    model_health: ModelHealth | None = None
     rating_distribution: dict[str, int]
     source_breakdown: dict[str, int]
     product_breakdown: dict[str, int]

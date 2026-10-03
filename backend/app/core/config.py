@@ -25,6 +25,16 @@ class Settings:
         default_factory=lambda: os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     )
     openai_api_key: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
+    ai_provider: str = field(default_factory=lambda: os.getenv("AI_PROVIDER", "openai"))
+    openai_model: str = field(
+        default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    )
+    openai_model_version: str = field(
+        default_factory=lambda: os.getenv("OPENAI_MODEL_VERSION", "")
+    )
+    analysis_max_attempts: int = field(
+        default_factory=lambda: int(os.getenv("ANALYSIS_MAX_ATTEMPTS", "5"))
+    )
     environment: str = field(default_factory=lambda: os.getenv("APP_ENV", "development"))
 
 

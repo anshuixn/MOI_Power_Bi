@@ -1,60 +1,31 @@
 from __future__ import annotations
 
-from typing import Any
-
-from app.data.mock_data import COMPLAINTS, INSIGHTS, REVIEWS, TOPICS
+from typing import Any, Protocol
 
 DataRecord = dict[str, Any]
 
 
-class ReviewInsightRepository:
-    """Read-only data access; fixture-backed until the Supabase phase."""
+class ReviewInsightRepository(Protocol):
+    """Persistence boundary used by review, catalog, and analytics services."""
 
-    def list_reviews(self) -> list[DataRecord]:
-        return list(REVIEWS)
+    def list_reviews(self, options: dict[str, Any]) -> dict[str, Any]: ...
 
-    def get_review(self, review_id: str) -> DataRecord | None:
-        return next((item for item in REVIEWS if item["id"] == review_id), None)
+    def get_review(self, review_id: str) -> DataRecord | None: ...
 
-    def list_topics(self) -> list[DataRecord]:
-        return list(TOPICS)
+    def list_topics(self) -> list[DataRecord]: ...
 
-    def list_complaints(self) -> list[DataRecord]:
-        return list(COMPLAINTS)
+    def get_topic(self, topic_id: str) -> DataRecord | None: ...
 
-    def list_insights(self) -> list[DataRecord]:
-        return list(INSIGHTS)
+    def get_topic_reviews(self, topic_id: str) -> list[DataRecord]: ...
 
-    def list_products(self) -> list[DataRecord]:
-        from app.data.mock_data import PRODUCTS
+    def list_complaints(self) -> list[DataRecord]: ...
 
-        return list(PRODUCTS)
+    def get_complaint(self, complaint_id: str) -> DataRecord | None: ...
 
-    def dashboard_data(self) -> dict[str, Any]:
-        from app.data.mock_data import (
-            BASELINE_ACTIVE_COMPLAINTS,
-            BASELINE_AVERAGE_RATING,
-            BASELINE_SENTIMENT,
-            BASELINE_TOTAL_REVIEWS,
-            MODEL_HEALTH_DATA,
-            PRODUCT_BREAKDOWN,
-            RATING_DISTRIBUTION,
-            SENTIMENT_TREND,
-            SOURCE_BREAKDOWN,
-            SPARKLINES,
-            SPOTLIGHT_REVIEW,
-        )
+    def list_insights(self, options: dict[str, Any]) -> list[DataRecord]: ...
 
-        return {
-            "baseline_active_complaints": BASELINE_ACTIVE_COMPLAINTS,
-            "baseline_average_rating": BASELINE_AVERAGE_RATING,
-            "baseline_sentiment": BASELINE_SENTIMENT,
-            "baseline_total_reviews": BASELINE_TOTAL_REVIEWS,
-            "model_health": MODEL_HEALTH_DATA,
-            "product_breakdown": PRODUCT_BREAKDOWN,
-            "rating_distribution": RATING_DISTRIBUTION,
-            "sentiment_trend": SENTIMENT_TREND,
-            "source_breakdown": SOURCE_BREAKDOWN,
-            "sparklines": SPARKLINES,
-            "spotlight_review": SPOTLIGHT_REVIEW,
-        }
+    def get_insight(self, insight_id: str) -> DataRecord | None: ...
+
+    def list_products(self) -> list[DataRecord]: ...
+
+    def dashboard_data(self, filters: dict[str, Any]) -> dict[str, Any]: ...

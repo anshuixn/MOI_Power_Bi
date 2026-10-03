@@ -12,7 +12,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import analytics, complaints, insights, reviews, topics
 from app.core.config import settings
-from app.core.exceptions import InvalidRequestError, ResourceNotFoundError
+from app.core.exceptions import (
+    DatabaseOperationError,
+    InvalidRequestError,
+    PermissionDeniedError,
+    ResourceNotFoundError,
+)
 from app.core.logging import configure_logging
 from app.schemas.common import Result
 
@@ -88,6 +93,41 @@ async def invalid_request_handler(request: Request, exc: InvalidRequestError):
             status="error",
             error=str(exc),
             code=422,
+        ).model_dump(exclude_none=True),
+    )
+
+
+@app.exception_handler(PermissionDeniedError)
+async def permission_denied_handler(request: Request, exc: PermissionDeniedError):
+    logger.warning(
+        "Permission denied request_id=%s path=%s",
+        getattr(request.state, "request_id", None),
+        request.url.path,
+    )
+    return JSONResponse(
+        status_code=403,
+        content=Result(
+            status="error",
+            error=str(exc),
+            code=403,
+        ).model_dump(exclude_none=True),
+    )
+
+
+@app.exception_handler(DatabaseOperationError)
+async def database_operation_handler(request: Request, exc: DatabaseOperationError):
+    logger.error(
+        "Database operation failed request_id=%s path=%s",
+        getattr(request.state, "request_id", None),
+        request.url.path,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return JSONResponse(
+        status_code=503,
+        content=Result(
+            status="error",
+            error="Database operation failed",
+            code=503,
         ).model_dump(exclude_none=True),
     )
 

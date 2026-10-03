@@ -11,3 +11,11 @@ class ResourceNotFoundError(ReviewBandError):
 
 class InvalidRequestError(ReviewBandError):
     pass
+
+
+class PermissionDeniedError(ReviewBandError):
+    pass
+
+
+class DatabaseOperationError(ReviewBandError):
+    """Raised when a persistence operation fails."""

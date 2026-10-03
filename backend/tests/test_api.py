@@ -1,12 +1,10 @@
+from app.core.config import Settings
 from fastapi.testclient import TestClient
 
-from app.core.config import Settings
 from app.main import app
 
-client = TestClient(app)
 
-
-def test_health_endpoint() -> None:
+def test_health_endpoint(client) -> None:
     for path in ("/health", "/api/v1/health"):
         response = client.get(path)
         assert response.status_code == 200
@@ -14,7 +12,7 @@ def test_health_endpoint() -> None:
         assert payload["status"] == "ok"
 
 
-def test_reviews_endpoint() -> None:
+def test_reviews_endpoint(client) -> None:
     response = client.get("/reviews/?page=1&page_size=5")
     assert response.status_code == 200
     payload = response.json()
@@ -23,7 +21,7 @@ def test_reviews_endpoint() -> None:
     assert len(payload["data"]["items"]) <= 5
 
 
-def test_versioned_reviews_and_not_found_error_contract() -> None:
+def test_versioned_reviews_and_not_found_error_contract(client) -> None:
     response = client.get("/api/v1/reviews/?page=1&page_size=5")
     assert response.status_code == 200
     assert response.json()["status"] == "success"
@@ -37,7 +35,7 @@ def test_versioned_reviews_and_not_found_error_contract() -> None:
     }
 
 
-def test_validation_error_has_standard_response_shape() -> None:
+def test_validation_error_has_standard_response_shape(client) -> None:
     response = client.get("/reviews/?page_size=0")
     assert response.status_code == 422
     payload = response.json()
@@ -47,7 +45,7 @@ def test_validation_error_has_standard_response_shape() -> None:
     assert payload["details"]
 
 
-def test_analytics_summary_endpoint() -> None:
+def test_analytics_summary_endpoint(client) -> None:
     response = client.get("/analytics/summary?dateRange=last_30_days")
     assert response.status_code == 200
     payload = response.json()
@@ -56,7 +54,7 @@ def test_analytics_summary_endpoint() -> None:
     assert "sentiment" in payload["data"]
 
 
-def test_insights_and_topics_endpoints() -> None:
+def test_insights_and_topics_endpoints(client) -> None:
     topics = client.get("/topics/")
     assert topics.status_code == 200
     assert topics.json()["status"] == "success"
@@ -66,7 +64,7 @@ def test_insights_and_topics_endpoints() -> None:
     assert insights.json()["status"] == "success"
 
 
-def test_existing_catalog_routes_and_custom_date_validation() -> None:
+def test_existing_catalog_routes_and_custom_date_validation(client) -> None:
     for path in ("/complaints/", "/api/v1/complaints/", "/api/v1/topics/", "/api/v1/insights/"):
         response = client.get(path)
         assert response.status_code == 200
@@ -92,3 +90,13 @@ def test_settings_read_environment_values(monkeypatch) -> None:
     assert configured.frontend_url == "https://reviewband.example"
     assert configured.supabase_url == "https://project.supabase.co"
     assert configured.openai_api_key == "test-key-placeholder"
+
+
+def test_database_backed_routes_require_authentication() -> None:
+    with TestClient(app) as unauthenticated_client:
+        response = unauthenticated_client.get(
+            "/api/v1/reviews/",
+            headers={"X-Organization-ID": "11111111-1111-4111-8111-111111111111"},
+        )
+    assert response.status_code == 401
+    assert response.json()["error"] == "Bearer authentication is required"
