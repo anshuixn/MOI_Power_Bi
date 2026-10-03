@@ -1,0 +1,1 @@
+"""Routes for ReviewBand API."""

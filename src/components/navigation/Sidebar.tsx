@@ -281,6 +281,7 @@ export function Sidebar() {
       {/* Sidebar Container */}
       <aside
         ref={sidebarRef}
+        id="reviewband-sidebar"
         aria-label="Main navigation"
         onMouseEnter={handleEnter}
         onMouseLeave={() => {
@@ -464,6 +465,45 @@ export function Sidebar() {
           }
         `}</style>
       </aside>
+
+      <button
+        type="button"
+        data-testid="sidebar-menu-trigger"
+        aria-label={isOpen ? 'Close dashboard navigation' : 'Open dashboard navigation'}
+        aria-controls="reviewband-sidebar"
+        aria-expanded={isOpen}
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
+        onClick={() => setIsOpen(open => !open)}
+        onFocus={handleFocus}
+        onBlur={handleLeave}
+        style={{
+          position: 'fixed',
+          left: 8,
+          top: 12,
+          width: 32,
+          height: 40,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+          padding: 0,
+          border: '1px solid rgba(196,181,253,0.38)',
+          borderRadius: 10,
+          background: 'rgba(255,255,255,0.82)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          boxShadow: '0 4px 16px rgba(28,16,51,0.10)',
+          cursor: 'pointer',
+          zIndex: 31,
+          transition: 'background 0.2s ease',
+        }}
+      >
+        <span aria-hidden="true" style={{ width: 16, height: 2, borderRadius: 2, background: '#4B4466' }} />
+        <span aria-hidden="true" style={{ width: 16, height: 2, borderRadius: 2, background: '#4B4466' }} />
+        <span aria-hidden="true" style={{ width: 16, height: 2, borderRadius: 2, background: '#4B4466' }} />
+      </button>
     </>
   )
 }

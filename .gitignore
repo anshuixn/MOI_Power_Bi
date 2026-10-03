@@ -26,3 +26,11 @@ dist-ssr
 # Playwright artifacts
 /test-results/
 /playwright-report/
+
+# Python backend
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/.venv/
+backend/venv/
+backend/.env
