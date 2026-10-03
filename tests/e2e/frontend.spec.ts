@@ -92,7 +92,7 @@ test('landing CTAs stay visible and lead to the demo and workspace', async ({ pa
   await expect(page.locator('main h1')).toContainText('Good Morning')
 })
 
-test('landing scene survives cursor and reverse-scroll interaction; cards and CTA respond physically', async ({ page }) => {
+test('landing scene survives cursor and reverse-scroll interaction; cards stay stable on hover', async ({ page }) => {
   test.setTimeout(60_000)
   const pageErrors: string[] = []
   const consoleErrors: string[] = []
@@ -120,10 +120,13 @@ test('landing scene survives cursor and reverse-scroll interaction; cards and CT
   await expect(card).toHaveCSS('opacity', '1')
   const bounds = await card.boundingBox()
   if (!bounds) throw new Error('The first landing feature card has no visible bounds')
+  const cardTransform = await card.evaluate(element => getComputedStyle(element).transform)
   await card.hover({ position: { x: bounds.width * 0.85, y: bounds.height * 0.2 } })
-  await expect.poll(() => card.evaluate(element => element.style.transform)).toContain('rotateY(')
+  await expect(card).toHaveCSS('transform', cardTransform)
   await page.mouse.move(10, 10)
-  await expect.poll(() => card.evaluate(element => element.style.transform)).toContain('rotateY(0deg)')
+  await expect(card).toHaveCSS('transform', cardTransform)
+  await page.waitForTimeout(250)
+  expect(await card.boundingBox()).toEqual(bounds)
 
   const enterWorkspace = page.locator('#landing-enter-btn')
   await enterWorkspace.hover()
@@ -132,20 +135,16 @@ test('landing scene survives cursor and reverse-scroll interaction; cards and CT
   expect(consoleErrors).toEqual([])
 })
 
-test('feature cards slide in sequentially and reverse smoothly with scroll', async ({ page }) => {
+test('feature cards slide in sequentially, settle, and reverse smoothly', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/')
   const cards = page.locator('.feat-card-path')
   await expect(cards).toHaveCount(6)
 
-  const range = await cards.first().evaluate(element => {
+  const start = await cards.first().evaluate(element => {
     const gridTop = window.scrollY + (element.parentElement?.getBoundingClientRect().top ?? 0)
-    return {
-      start: gridTop - window.innerHeight * 0.9,
-      end: gridTop - window.innerHeight * 0.42,
-    }
+    return gridTop - window.innerHeight * 0.9
   })
-  const sampleScroll = range.start + (range.end - range.start) * 0.14
   const readCardState = () => cards.evaluateAll(elements => elements.map(element => {
     const style = getComputedStyle(element)
     const matrix = new DOMMatrixReadOnly(style.transform)
@@ -157,74 +156,62 @@ test('feature cards slide in sequentially and reverse smoothly with scroll', asy
       scale: matrix.a,
     }
   }))
+  const readCardPositions = () => cards.evaluateAll(elements => elements.map(element => {
+    const { x, y, width, height } = element.getBoundingClientRect()
+    return { x, y: y + window.scrollY, width, height }
+  }))
 
-  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), range.start - 2)
+  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start - 2)
   await expect.poll(() => cards.first().evaluate(element =>
     Number(getComputedStyle(element).opacity)
   )).toBe(0)
 
-  await page.mouse.wheel(0, Math.round(sampleScroll - (range.start - 2)))
+  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start + 2)
+  let staggeredStates: Awaited<ReturnType<typeof readCardState>> = []
   await expect.poll(async () => {
     const states = await readCardState()
-    return states[0].opacity > states[1].opacity && states[1].opacity > states[2].opacity
+    const hasStaggeredPositions = Math.abs(states[0].x) < 1 && Math.abs(states[0].y) < 1
+      && Math.abs(states[5].x) + Math.abs(states[5].y) > 1
+    if (hasStaggeredPositions) staggeredStates = states
+    return hasStaggeredPositions
   }).toBe(true)
-  const enteringStates = await readCardState()
-  expect(enteringStates.every(state => state.z === 0 && Math.abs(state.scale - 1) < 0.001)).toBe(true)
-  expect(enteringStates[0].x).not.toBe(0)
-  expect(enteringStates[0].y).not.toBe(enteringStates[1].y)
+  expect(staggeredStates).toHaveLength(6)
+  expect(staggeredStates.every(state => state.z === 0 && Math.abs(state.scale - 1) < 0.001)).toBe(true)
 
-  const pathMidpoint = range.start + (range.end - range.start) * 0.5
-  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), pathMidpoint)
   await expect.poll(async () => {
     const states = await readCardState()
-    return Math.abs(states[0].x - enteringStates[0].x) > 1
-      && Math.abs(states[0].y - enteringStates[0].y) > 1
+    return states.every(state => state.opacity === 1 && Math.abs(state.x) < 1 && Math.abs(state.y) < 1)
   }).toBe(true)
-  const midpointStates = await readCardState()
-  expect(Math.abs(midpointStates[0].x)).toBeLessThan(1)
-  expect(Math.abs(midpointStates[0].y)).toBeLessThan(1)
-  expect(Math.abs(midpointStates[5].x) + Math.abs(midpointStates[5].y)).toBeGreaterThan(1)
+  const finalBoxes = await readCardPositions()
 
-  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), range.end + 2)
-  await expect.poll(async () => {
-    const states = await readCardState()
-    return states.every(state => state.opacity === 1 && Math.abs(state.y) < 1)
-  }).toBe(true)
-  const finalBoxes = await cards.evaluateAll(elements => elements.map(element => {
-    const { x, y, width, height } = element.getBoundingClientRect()
-    return { x, y, width, height }
-  }))
-
-  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), sampleScroll)
-  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), sampleScroll)
-  await expect.poll(async () => {
-    const states = await readCardState()
-    return states[0].opacity > states[1].opacity
-      && Math.abs(states[0].x - midpointStates[0].x) > 1
-      && Math.abs(states[0].y - midpointStates[0].y) > 1
-  }).toBe(true)
+  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start + 120)
+  await page.waitForTimeout(250)
   expect((await readCardState()).every(state =>
-    state.z === 0 && Math.abs(state.scale - 1) < 0.001
+    state.opacity === 1 && state.x === 0 && state.y === 0
+      && state.z === 0 && Math.abs(state.scale - 1) < 0.001
   )).toBe(true)
+  expect(await readCardPositions()).toEqual(finalBoxes)
 
-  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), range.end + 2)
+  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start - 2)
   await expect.poll(async () => {
     const states = await readCardState()
-    return states.every(state => state.opacity === 1 && Math.abs(state.y) < 1)
+    return states.every(state => state.opacity === 0 && Math.abs(state.x) > 1)
   }).toBe(true)
-  expect(await cards.evaluateAll(elements => elements.map(element => {
-    const { x, y, width, height } = element.getBoundingClientRect()
-    return { x, y, width, height }
-  }))).toEqual(finalBoxes)
+
+  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start + 2)
+  await expect.poll(async () => {
+    const states = await readCardState()
+    return states.every(state => state.opacity === 1 && Math.abs(state.x) < 1 && Math.abs(state.y) < 1)
+  }).toBe(true)
 
   await page.setViewportSize({ width: 390, height: 844 })
-  const mobileEnd = await cards.first().evaluate(element =>
-    window.scrollY + (element.parentElement?.getBoundingClientRect().top ?? 0) - window.innerHeight * 0.42 + 2
+  const mobileStart = await cards.first().evaluate(element =>
+    window.scrollY + (element.parentElement?.getBoundingClientRect().top ?? 0) - window.innerHeight * 0.9 + 2
   )
-  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), mobileEnd)
+  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), mobileStart)
   await expect.poll(async () => {
     const states = await readCardState()
-    return states.every(state => state.opacity === 1 && Math.abs(state.y) < 1)
+    return states.every(state => state.opacity === 1 && Math.abs(state.x) < 1 && Math.abs(state.y) < 1)
   }).toBe(true)
   expect(await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

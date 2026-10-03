@@ -34,62 +34,38 @@ const LandingScene3D = lazy(() =>
 
 gsap.registerPlugin(ScrollTrigger, useGSAP)
 
-const FEATURE_CARD_PATH =
-  'M 55 128 C 170 88 292 151 423 128 C 557 105 692 111 824 145 C 925 171 954 225 879 256 C 805 287 746 249 761 219 C 777 190 820 203 817 236 C 814 272 763 297 707 287 C 646 277 614 311 570 337 C 522 365 463 339 448 305 C 433 271 471 244 505 264 C 544 287 522 333 483 365 C 442 399 414 434 445 475 C 484 528 572 531 620 487 C 665 445 642 392 594 384 C 545 376 509 420 507 465 C 505 509 494 545 470 577'
-const FEATURE_CARD_PATH_VIEWBOX = { width: 1000, height: 700 }
+const FEATURE_CARD_ENTRANCES = [
+  { x: -440, y: -280, rotateX: -12, rotateY: 18, rotateZ: -24 },
+  { x: 440, y: -300, rotateX: 10, rotateY: -18, rotateZ: 26 },
+  { x: -460, y: 260, rotateX: 14, rotateY: 16, rotateZ: -20 },
+  { x: 460, y: 240, rotateX: -12, rotateY: -16, rotateZ: 22 },
+  { x: 0, y: -420, rotateX: 16, rotateY: -8, rotateZ: 14 },
+  { x: 0, y: 400, rotateX: -15, rotateY: 10, rotateZ: -18 },
+]
 
-// ── Feature Card — floating, hover-sensitive 3D tilt ─────────
+// ── Feature Card — stable position with hover styling ─────────
 function FeatureCard({
   icon: Icon,
   title,
   desc,
   gradient,
-  yOffset = 0,
 }: {
   icon: typeof BarChart3
   title: string
   desc: string
   gradient: string
-  yOffset?: number
 }) {
   const cardRef = useRef<HTMLDivElement>(null)
-  const tiltFrameRef = useRef<number | null>(null)
-  const pointerRef = useRef({ x: 0, y: 0 })
-
-  useEffect(() => () => {
-    if (tiltFrameRef.current !== null) {
-      cancelAnimationFrame(tiltFrameRef.current)
-    }
-  }, [])
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    pointerRef.current = { x: e.clientX, y: e.clientY }
-    if (tiltFrameRef.current !== null) return
-
-    tiltFrameRef.current = requestAnimationFrame(() => {
-      const card = cardRef.current
-      tiltFrameRef.current = null
-      if (!card) return
-
-      const rect = card.getBoundingClientRect()
-      const dx = (pointerRef.current.x - (rect.left + rect.width / 2)) / (rect.width / 2)
-      const dy = (pointerRef.current.y - (rect.top + rect.height / 2)) / (rect.height / 2)
-      card.style.transition = 'transform 0s, box-shadow 0.18s ease, border-color 0.18s ease'
-      card.style.transform = `translateY(${yOffset - 6}px) perspective(800px) rotateX(${-dy * 3}deg) rotateY(${dx * 3}deg)`
-      card.style.boxShadow = '0 24px 64px rgba(124,58,237,0.18), 0 4px 16px rgba(0,0,0,0.06)'
-      card.style.borderColor = 'rgba(196,181,253,0.55)'
-    })
+  const handleMouseEnter = () => {
+    const card = cardRef.current
+    if (!card) return
+    card.style.boxShadow = '0 24px 64px rgba(124,58,237,0.18), 0 4px 16px rgba(0,0,0,0.06)'
+    card.style.borderColor = 'rgba(196,181,253,0.55)'
   }
 
   const handleMouseLeave = () => {
     const card = cardRef.current
     if (!card) return
-    if (tiltFrameRef.current !== null) {
-      cancelAnimationFrame(tiltFrameRef.current)
-      tiltFrameRef.current = null
-    }
-    card.style.transition = 'transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease, border-color 0.18s ease'
-    card.style.transform = `translateY(${yOffset}px) perspective(800px) rotateX(0deg) rotateY(0deg)`
     card.style.boxShadow = '0 8px 36px rgba(124,58,237,0.09), 0 2px 8px rgba(0,0,0,0.04)'
     card.style.borderColor = 'rgba(255,255,255,0.72)'
   }
@@ -98,7 +74,7 @@ function FeatureCard({
     <div
       ref={cardRef}
       className="feat-card"
-      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       style={{
         padding: '32px 28px',
@@ -108,7 +84,7 @@ function FeatureCard({
         WebkitBackdropFilter: 'blur(28px) saturate(150%)',
         border: '1px solid rgba(255,255,255,0.72)',
         boxShadow: '0 8px 36px rgba(124,58,237,0.09), 0 2px 8px rgba(0,0,0,0.04)',
-        transition: 'transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease, border-color 0.18s ease',
+        transition: 'box-shadow 0.18s ease, border-color 0.18s ease',
         cursor: 'default',
       }}
     >
@@ -182,7 +158,6 @@ export function Landing() {
   const containerRef = useRef<HTMLDivElement>(null)
   const featureSectionRef = useRef<HTMLElement>(null)
   const featureGridRef = useRef<HTMLDivElement>(null)
-  const featurePathRef = useRef<SVGPathElement>(null)
   const scrollProgressRef = useRef(0)
   const scrollVelocityRef = useRef(0)
   const isTransitioning = useRef(false)
@@ -277,54 +252,58 @@ export function Landing() {
         })
       })
 
-      // ── Feature cards — staggered slide along a 2D path ─────
+      // ── Feature cards — staggered 3D travel into the existing grid ─
       const section = featureSectionRef.current
       const grid = featureGridRef.current
-      const path = featurePathRef.current
       const cards = section
         ? gsap.utils.toArray<HTMLElement>('.feat-card-path', section)
         : []
 
-      if (section && grid && path && cards.length > 0) {
-        const pathLength = path.getTotalLength()
-        const endPoint = path.getPointAtLength(pathLength)
-        let pathScale = 0
-        const cardTravelDuration = 0.48
+      if (section && grid && cards.length > 0) {
+        const entranceScale = () => Math.max(0.65, Math.min(grid.clientWidth / 900, 1))
+        const cardTimeline = gsap.timeline({ paused: true })
 
-        const setCardPositions = (progress: number) => {
-          cards.forEach((card, index) => {
-            const stagger = index * 0.09
-            const cardProgress = gsap.utils.clamp(
-              0,
-              1,
-              (progress - stagger) / cardTravelDuration,
-            )
-            const point = path.getPointAtLength(pathLength * cardProgress)
+        cards.forEach((card, index) => {
+          const entrance = FEATURE_CARD_ENTRANCES[index]
+          if (!entrance) return
 
-            gsap.set(card, {
-              x: (point.x - endPoint.x) * pathScale,
-              y: (point.y - endPoint.y) * pathScale,
-              opacity: gsap.utils.clamp(0, 1, cardProgress * 5),
-            })
-          })
-        }
+          cardTimeline.fromTo(
+            card,
+            {
+              x: () => entrance.x * entranceScale(),
+              y: () => entrance.y * entranceScale(),
+              z: -420,
+              rotationX: entrance.rotateX,
+              rotationY: entrance.rotateY,
+              rotationZ: entrance.rotateZ,
+              scale: 0.72,
+              opacity: 0,
+              transformPerspective: 1200,
+            },
+            {
+              x: 0,
+              y: 0,
+              z: 0,
+              rotationX: 0,
+              rotationY: 0,
+              rotationZ: 0,
+              scale: 1,
+              opacity: 1,
+              duration: 0.43,
+              ease: 'power2.inOut',
+            },
+            index * 0.115,
+          )
+        })
 
-        const measurePath = () => {
-          pathScale = Math.min(section.getBoundingClientRect().width * 0.00018, 0.2)
-        }
-
-        measurePath()
-        const cardPathTrigger = ScrollTrigger.create({
+        ScrollTrigger.create({
           trigger: grid,
           start: 'top 90%',
-          end: 'top 42%',
-          onRefresh: self => {
-            measurePath()
-            setCardPositions(self.progress)
-          },
-          onUpdate: self => setCardPositions(self.progress),
+          end: 'top 30%',
+          animation: cardTimeline,
+          scrub: 0.18,
+          invalidateOnRefresh: true,
         })
-        setCardPositions(cardPathTrigger.progress)
       }
 
       // ── Stats reveal ────────────────────────────────────────
@@ -403,42 +382,36 @@ export function Landing() {
       title: 'AI Sentiment Engine',
       desc: 'Explore positive, neutral, and negative sentiment across the ReviewBand sample review dataset.',
       gradient: 'linear-gradient(135deg, #7C3AED, #A855F7)',
-      yOffset: 8,
     },
     {
       icon: BarChart3,
       title: 'Review Analytics',
       desc: 'Compare review ratings, customer sentiment, and source mix with a consistent sample dataset.',
       gradient: 'linear-gradient(135deg, #2563EB, #7C3AED)',
-      yOffset: 0,
     },
     {
       icon: Zap,
       title: 'Actionable Signals',
       desc: 'Bring emerging topics and complaint patterns into focus so teams can decide what to investigate.',
       gradient: 'linear-gradient(135deg, #EC4899, #A855F7)',
-      yOffset: 8,
     },
     {
       icon: TrendingUp,
       title: 'Topic Trends',
       desc: 'See which themes are rising, stable, or falling across the sample customer feedback.',
       gradient: 'linear-gradient(135deg, #059669, #2563EB)',
-      yOffset: 0,
     },
     {
       icon: Shield,
       title: 'Privacy Signals',
       desc: 'Inspect the demo review records alongside their PII-processing status and redaction metadata.',
       gradient: 'linear-gradient(135deg, #D97706, #EC4899)',
-      yOffset: 8,
     },
     {
       icon: Star,
       title: 'Review Intelligence',
       desc: 'Deep dive into individual reviews. Cluster similar feedback. Prioritize what matters most to your business.',
       gradient: 'linear-gradient(135deg, #7C3AED, #059669)',
-      yOffset: 0,
     },
   ]
 
@@ -660,15 +633,6 @@ export function Landing() {
           maxWidth: 1200, margin: '0 auto',
         }}
       >
-        <svg
-          aria-hidden="true"
-          focusable="false"
-          viewBox={`0 0 ${FEATURE_CARD_PATH_VIEWBOX.width} ${FEATURE_CARD_PATH_VIEWBOX.height}`}
-          style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', pointerEvents: 'none' }}
-        >
-          <path ref={featurePathRef} d={FEATURE_CARD_PATH} />
-        </svg>
-
         {/* Section header */}
         <div style={{ textAlign: 'center', marginBottom: 80 }}>
           <p
@@ -709,6 +673,8 @@ export function Landing() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
             gap: 22,
             alignItems: 'start',
+            perspective: '1200px',
+            transformStyle: 'preserve-3d',
           }}
         >
           {features.map((f) => (

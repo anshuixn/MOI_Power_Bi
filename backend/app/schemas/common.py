@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Generic, Literal, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 T = TypeVar("T")
 
@@ -12,6 +12,9 @@ class Result(BaseModel, Generic[T]):
     data: T | None = None
     error: str | None = None
     code: int | None = None
+    details: list[dict[str, object]] | None = None
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class FilterState(BaseModel):

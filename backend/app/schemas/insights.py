@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.schemas.review import Review
+
 
 class Topic(BaseModel):
     id: str
