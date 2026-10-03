@@ -73,7 +73,7 @@ export function ReviewsExplorer() {
       </header>
 
       {/* Main Layout */}
-      <div style={{ display: 'flex', gap: 24, flex: 1, minHeight: 0 }}>
+      <div className="review-main-layout" style={{ display: 'flex', gap: 24, flex: 1, minHeight: 0 }}>
         
         {/* Main List */}
         <div className="glass-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0 }}>
@@ -101,6 +101,15 @@ export function ReviewsExplorer() {
                 key={review.id} 
                 className="glass-secondary interactive"
                 onClick={() => setSelectedReview(review)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    setSelectedReview(review)
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open ${review.productName} review details`}
                 style={{ 
                   padding: 20, 
                   marginBottom: 12, 
@@ -144,10 +153,10 @@ export function ReviewsExplorer() {
 
         {/* Detail Drawer (Side Panel) */}
         {selectedReview ? (
-          <div className="glass-card" style={{ width: 380, padding: 24, display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto' }}>
+          <div className="glass-card detail-drawer" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Review Details</h3>
-              <button className="glass-interactive" onClick={() => setSelectedReview(null)} style={{ width: 32, height: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              <button aria-label="Close review details" className="glass-interactive" onClick={() => setSelectedReview(null)} style={{ width: 32, height: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             </div>
             
             <div>
@@ -209,7 +218,7 @@ export function ReviewsExplorer() {
             </div>
           </div>
         ) : (
-          <div className="glass-card" style={{ width: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, textAlign: 'center' }}>
+          <div className="glass-card review-empty-state" style={{ width: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, textAlign: 'center' }}>
             <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(124,58,237,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
                <Zap size={28} color="#C4B5FD" />
             </div>

@@ -15,38 +15,69 @@ const OPTIONS: { id: DateRangeType, label: string }[] = [
   { id: 'custom', label: 'Custom Range' },
 ]
 
+function formatDateInput(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getDefaultCustomDates() {
+  const end = new Date()
+  const start = new Date(end)
+  start.setDate(start.getDate() - 29)
+  return { start: formatDateInput(start), end: formatDateInput(end) }
+}
+
 export function DatePicker() {
-  const { filters, updateFilter } = useApp()
+  const { filters, setFilters } = useApp()
   const [isOpen, setIsOpen] = useState(false)
   const [tempRange, setTempRange] = useState<DateRangeType>(filters.dateRange as DateRangeType || 'last_30_days')
+  const initialCustomDates = getDefaultCustomDates()
+  const [customStart, setCustomStart] = useState(filters.customDateStart ?? initialCustomDates.start)
+  const [customEnd, setCustomEnd] = useState(filters.customDateEnd ?? initialCustomDates.end)
   const dropdownRef = useRef<HTMLDivElement>(null)
-
-  // Sync state if filter changes externally
-  // oxlint-disable-next-line react/set-state-in-effect -- intentional: syncing controlled filter state from parent context
-  useEffect(() => {
-    setTempRange(filters.dateRange as DateRangeType)
-  }, [filters.dateRange])
 
   // Click outside to close
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsOpen(false)
-        setTempRange(filters.dateRange as DateRangeType) // Reset to applied
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [filters.dateRange])
+  }, [])
+
+  const toggleOpen = () => {
+    if (!isOpen) {
+      setTempRange(filters.dateRange)
+      const defaults = getDefaultCustomDates()
+      setCustomStart(filters.customDateStart ?? defaults.start)
+      setCustomEnd(filters.customDateEnd ?? defaults.end)
+    }
+    setIsOpen(!isOpen)
+  }
 
   const handleApply = () => {
-    updateFilter('dateRange', tempRange)
+    if (tempRange === 'custom' && (!customStart || !customEnd || customStart > customEnd)) return
+    setFilters({
+      ...filters,
+      dateRange: tempRange,
+      customDateStart: tempRange === 'custom' ? customStart : undefined,
+      customDateEnd: tempRange === 'custom' ? customEnd : undefined,
+    })
     setIsOpen(false)
   }
 
   const handleReset = () => {
     setTempRange('last_30_days')
-    updateFilter('dateRange', 'last_30_days')
+    setFilters({
+      ...filters,
+      dateRange: 'last_30_days',
+      customDateStart: undefined,
+      customDateEnd: undefined,
+    })
     setIsOpen(false)
   }
 
@@ -55,7 +86,10 @@ export function DatePicker() {
   return (
     <div style={{ position: 'relative' }} ref={dropdownRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleOpen}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        aria-label={`Date range: ${currentLabel}`}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -81,6 +115,8 @@ export function DatePicker() {
 
       {isOpen && (
         <div
+          role="dialog"
+          aria-label="Choose date range"
           style={{
             position: 'absolute',
             top: 'calc(100% + 8px)',
@@ -126,10 +162,29 @@ export function DatePicker() {
           </div>
           
           {tempRange === 'custom' && (
-            <div style={{ padding: '0 16px 16px' }}>
-              <div style={{ padding: '24px 0', textAlign: 'center', background: 'rgba(0,0,0,0.02)', borderRadius: 8, border: '1px dashed rgba(0,0,0,0.1)', color: '#9CA3AF', fontSize: 13 }}>
-                Inline Calendar Placeholder
-              </div>
+            <div style={{ padding: '0 16px 16px', display: 'grid', gap: 10 }}>
+              <label style={{ display: 'grid', gap: 4, color: '#4A5160', fontSize: 12 }}>
+                Start date
+                <input
+                  aria-label="Start date"
+                  type="date"
+                  value={customStart}
+                  max={customEnd || undefined}
+                  onChange={event => setCustomStart(event.target.value)}
+                  style={{ padding: '8px 10px', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, font: 'inherit' }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: 4, color: '#4A5160', fontSize: 12 }}>
+                End date
+                <input
+                  aria-label="End date"
+                  type="date"
+                  value={customEnd}
+                  min={customStart || undefined}
+                  onChange={event => setCustomEnd(event.target.value)}
+                  style={{ padding: '8px 10px', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, font: 'inherit' }}
+                />
+              </label>
             </div>
           )}
 

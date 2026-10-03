@@ -1,28 +1,34 @@
 // ============================================================
-// Landing 3D Scene — Custom shaders, floating geometry,
-// post-processing, cursor-reactive lighting
+// ReviewBand — Cinematic AI Orb
+// Sophisticated multi-layer intelligence orb with:
+// • Luminous core with noise displacement
+// • Multiple orbital rings at different inclinations
+// • Small orbital nodes (discs, arcs, particles) at varied speeds
+// • Cursor-reactive parallax via spring interpolation
+// • Scroll-phase-based position, scale, opacity choreography
+// • Ambient particles that respond to scroll velocity
 // ============================================================
 
-import { useRef, useMemo, useEffect } from 'react'
+import { useRef, useMemo, useEffect, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
+import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
 import * as THREE from 'three'
+import type { PerformanceTier } from '@/types'
 
-// Global click impulse store (decaying force from 0 to 1)
-const clickImpulse = { current: 0 }
+// ── Shared cursor state (raw → smoothed spring) ──────────────
+const cursor = { rawX: 0, rawY: 0, x: 0, y: 0 }
+const BASE_SCENE_SCALE = 0.72
 
-window.addEventListener('click', () => {
-  clickImpulse.current = 1
-})
 
-// ── Custom Perlin Noise Vertex Shader ────────────────────────
-const vertexShader = `
+// ── Perlin-style noise vertex shader (core orb) ─────────────
+const coreVertexShader = `
   varying vec2 vUv;
   varying vec3 vNormal;
   varying vec3 vPosition;
   uniform float uTime;
 
+  // Classic Perlin noise
   vec4 permute(vec4 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
   vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }
   vec3 fade(vec3 t){ return t*t*t*(t*(t*6.0-15.0)+10.0); }
@@ -49,9 +55,9 @@ const vertexShader = `
     vec3 g010 = vec3(gx0.z,gy0.z,gz0.z); vec3 g110 = vec3(gx0.w,gy0.w,gz0.w);
     vec3 g001 = vec3(gx1.x,gy1.x,gz1.x); vec3 g101 = vec3(gx1.y,gy1.y,gz1.y);
     vec3 g011 = vec3(gx1.z,gy1.z,gz1.z); vec3 g111 = vec3(gx1.w,gy1.w,gz1.w);
-    vec4 norm0 = taylorInvSqrt(vec4(dot(g000,g000), dot(g010,g010), dot(g100,g100), dot(g110,g110)));
+    vec4 norm0 = taylorInvSqrt(vec4(dot(g000,g000),dot(g010,g010),dot(g100,g100),dot(g110,g110)));
     g000 *= norm0.x; g010 *= norm0.y; g100 *= norm0.z; g110 *= norm0.w;
-    vec4 norm1 = taylorInvSqrt(vec4(dot(g001,g001), dot(g011,g011), dot(g101,g101), dot(g111,g111)));
+    vec4 norm1 = taylorInvSqrt(vec4(dot(g001,g001),dot(g011,g011),dot(g101,g101),dot(g111,g111)));
     g001 *= norm1.x; g011 *= norm1.y; g101 *= norm1.z; g111 *= norm1.w;
     float n000 = dot(g000, Pf0);
     float n100 = dot(g100, vec3(Pf1.x, Pf0.yz));
@@ -72,60 +78,94 @@ const vertexShader = `
     vUv = uv;
     vNormal = normal;
     vPosition = position;
-    float noise = cnoise(position * 1.4 + uTime * 0.22);
-    vec3 displaced = position + normal * noise * 0.28;
+    // Organic noise deformation
+    float noise = cnoise(position * 1.2 + uTime * 0.18);
+    // Breathing: very subtle size oscillation
+    float breathe = 1.0 + 0.022 * sin(uTime * 0.7);
+    vec3 displaced = position * breathe + normal * noise * 0.22;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
   }
 `
 
-const fragmentShader = `
+const coreFragmentShader = `
   varying vec2 vUv;
   varying vec3 vNormal;
   varying vec3 vPosition;
   uniform float uTime;
-  uniform vec3 uColorA;
-  uniform vec3 uColorB;
-  uniform vec3 uColorC;
 
   void main() {
-    float t = 0.5 + 0.5 * sin(uTime * 0.38 + vPosition.y * 1.8);
-    float t2 = 0.5 + 0.5 * cos(uTime * 0.28 + vPosition.x * 1.4);
-    vec3 color = mix(uColorA, uColorB, t);
-    color = mix(color, uColorC, t2 * 0.5);
+    // Base color cycling: violet → magenta → indigo
+    float t = 0.5 + 0.5 * sin(uTime * 0.32 + vPosition.y * 2.1);
+    float t2 = 0.5 + 0.5 * cos(uTime * 0.24 + vPosition.x * 1.6);
+    vec3 colorA = vec3(0.486, 0.227, 0.929); // #7C3AED violet
+    vec3 colorB = vec3(0.659, 0.333, 0.969); // #A855F7 mid-purple
+    vec3 colorC = vec3(0.925, 0.282, 0.6);   // #EC4899 magenta
+
+    vec3 color = mix(colorA, colorB, t);
+    color = mix(color, colorC, t2 * 0.45);
+
+    // Fresnel rim glow — gives depth and glass feel
     vec3 viewDir = normalize(cameraPosition - vPosition);
-    float fresnel = pow(1.0 - dot(viewDir, vNormal), 3.0);
-    color += fresnel * uColorB * 0.9;
-    gl_FragColor = vec4(color, 0.88);
+    float fresnel = pow(1.0 - max(0.0, dot(viewDir, vNormal)), 2.8);
+    color += fresnel * colorB * 1.1;
+
+    // Inner luminosity pulse
+    float pulse = 0.92 + 0.08 * sin(uTime * 1.1);
+    float alpha = (0.82 + fresnel * 0.15) * pulse;
+
+    gl_FragColor = vec4(color, alpha);
   }
 `
 
-// ── Blob Sphere ───────────────────────────────────────────────
-function BlobSphere() {
+// ── Inner core glow (small luminous sphere) ──────────────────
+function CoreGlow() {
+  const meshRef = useRef<THREE.Mesh>(null)
+  const matRef = useRef<THREE.MeshBasicMaterial>(null)
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime()
+    if (matRef.current) {
+      // Very subtle breathing opacity
+      matRef.current.opacity = 0.55 + 0.08 * Math.sin(t * 0.9)
+    }
+  })
+
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[0.38, 32, 32]} />
+      <meshBasicMaterial
+        ref={matRef}
+        color="#E0C4FF"
+        transparent
+        opacity={0.55}
+        depthWrite={false}
+      />
+    </mesh>
+  )
+}
+
+// ── Main AI Orb (noise-displaced sphere) ─────────────────────
+function AIOrb() {
   const meshRef = useRef<THREE.Mesh>(null)
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
-    uColorA: { value: new THREE.Color('#7C3AED') },
-    uColorB: { value: new THREE.Color('#A855F7') },
-    uColorC: { value: new THREE.Color('#EC4899') },
   }), [])
 
   useFrame(({ clock }, delta) => {
     uniforms.uTime.value = clock.getElapsedTime()
     if (meshRef.current) {
-      meshRef.current.rotation.y = clock.getElapsedTime() * 0.1
-      meshRef.current.rotation.z = Math.sin(clock.getElapsedTime() * 0.07) * 0.12
-      // Click physics: scale up and rotate faster when clicked
-      const targetScale = 1.6 + clickImpulse.current * 0.4
-      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 5)
+      // Very gentle autonomous rotation
+      meshRef.current.rotation.y += delta * 0.07
+      meshRef.current.rotation.z = Math.sin(clock.getElapsedTime() * 0.055) * 0.1
     }
   })
 
   return (
-    <mesh ref={meshRef} scale={1.6}>
-      <sphereGeometry args={[1, 128, 128]} />
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[1, 48, 48]} />
       <shaderMaterial
-        vertexShader={vertexShader}
-        fragmentShader={fragmentShader}
+        vertexShader={coreVertexShader}
+        fragmentShader={coreFragmentShader}
         uniforms={uniforms}
         transparent
       />
@@ -133,28 +173,169 @@ function BlobSphere() {
   )
 }
 
-// ── Floating Particles ────────────────────────────────────────
-function FloatingParticles() {
+// ── Orbital Ring (tilted torus at various inclinations) ───────
+function OrbitalRing({
+  radius,
+  speed,
+  tiltX,
+  tiltZ,
+  color,
+  opacity,
+  tube,
+}: {
+  radius: number
+  speed: number
+  tiltX: number
+  tiltZ: number
+  color: string
+  opacity: number
+  tube: number
+}) {
+  const groupRef = useRef<THREE.Group>(null)
+
+  useFrame(({ clock }, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * speed
+      groupRef.current.rotation.x = tiltX + Math.sin(clock.getElapsedTime() * 0.06) * 0.04
+      groupRef.current.rotation.z = tiltZ + Math.cos(clock.getElapsedTime() * 0.05) * 0.03
+    }
+  })
+
+  return (
+    <group ref={groupRef} rotation={[tiltX, 0, tiltZ]}>
+      <mesh>
+        <torusGeometry args={[radius, tube, 12, 128]} />
+        <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} />
+      </mesh>
+    </group>
+  )
+}
+
+// ── Orbital Node (small glowing disc orbiting) ────────────────
+function OrbitalNode({
+  radius,
+  speed,
+  offset,
+  inclinationX,
+  inclinationZ,
+  color,
+  size,
+}: {
+  radius: number
+  speed: number
+  offset: number
+  inclinationX: number
+  inclinationZ: number
+  color: string
+  size: number
+}) {
+  const groupRef = useRef<THREE.Group>(null)
+  const meshRef = useRef<THREE.Mesh>(null)
+  const matRef = useRef<THREE.MeshBasicMaterial>(null)
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime()
+    const angle = t * speed + offset
+    if (groupRef.current) {
+      // Orbit in a tilted plane
+      const x = Math.cos(angle) * radius
+      const y = Math.sin(angle) * radius * Math.cos(inclinationX)
+      const z = Math.sin(angle) * radius * Math.sin(inclinationZ)
+      groupRef.current.position.set(x, y, z)
+    }
+    // Pulsing opacity — each node breathes at a slightly different rate
+    if (matRef.current) {
+      matRef.current.opacity = 0.55 + 0.35 * Math.sin(t * 1.3 + offset)
+    }
+    // Billboard: face camera
+    if (meshRef.current) {
+      meshRef.current.rotation.y += 0.01
+    }
+  })
+
+  return (
+    <group ref={groupRef}>
+      <mesh ref={meshRef}>
+        <circleGeometry args={[size, 16]} />
+        <meshBasicMaterial ref={matRef} color={color} transparent opacity={0.7} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  )
+}
+
+// ── Arc Fragment (short glowing arc orbiting) ─────────────────
+function OrbitalArc({
+  radius,
+  speed,
+  offset,
+  color,
+  opacity,
+}: {
+  radius: number
+  speed: number
+  offset: number
+  color: string
+  opacity: number
+}) {
+  const groupRef = useRef<THREE.Group>(null)
+
+  useFrame(({ clock }) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.z = clock.getElapsedTime() * speed + offset
+      groupRef.current.rotation.x = 0.6 + Math.sin(clock.getElapsedTime() * 0.04 + offset) * 0.15
+    }
+  })
+
+  // Create arc as a partial torus
+  const arcGeometry = useMemo(() => {
+    const curve = new THREE.TorusGeometry(radius, 0.008, 8, 80, Math.PI * 0.4)
+    return curve
+  }, [radius])
+
+  return (
+    <group ref={groupRef}>
+      <mesh geometry={arcGeometry}>
+        <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} />
+      </mesh>
+    </group>
+  )
+}
+
+// ── Ambient Intelligence Particles ───────────────────────────
+function AmbientParticles({ scrollVelocityRef }: { scrollVelocityRef: React.MutableRefObject<number> }) {
   const meshRef = useRef<THREE.Points>(null)
-  // oxlint-disable-next-line react/purity -- Math.random() is called inside useMemo (not render), producing stable particle positions
+  const matRef = useRef<THREE.PointsMaterial>(null)
+
   const positions = useMemo(() => {
-    const pos = new Float32Array(140 * 3)
-    for (let i = 0; i < 140; i++) {
-      // oxlint-disable-next-line react/purity -- intentional: one-time random seed inside useMemo
-      pos[i * 3] = (Math.random() - 0.5) * 22
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 14
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 10
+    const count = 60 // sparse, intentional
+    const pos = new Float32Array(count * 3)
+    const random = (seed: number) => {
+      const value = Math.sin(seed * 12.9898) * 43758.5453
+      return value - Math.floor(value)
+    }
+
+    for (let i = 0; i < count; i++) {
+      const r = 2.5 + random(i * 3 + 1) * 5.5
+      const theta = random(i * 3 + 2) * Math.PI * 2
+      const phi = random(i * 3 + 3) * Math.PI
+      pos[i * 3]     = r * Math.sin(phi) * Math.cos(theta)
+      pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
+      pos[i * 3 + 2] = r * Math.cos(phi)
     }
     return pos
   }, [])
 
-  useFrame(({ clock }, delta) => {
+  useFrame((_, delta) => {
     if (meshRef.current) {
-      // Base rotation + impulse spin
-      meshRef.current.rotation.y = clock.getElapsedTime() * 0.022 + clickImpulse.current * 0.5
-      // Scale out on click
-      const targetScale = 1 + clickImpulse.current * 0.3
-      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 4)
+      meshRef.current.rotation.y += delta * 0.012
+      meshRef.current.rotation.x += delta * 0.007
+    }
+    if (matRef.current) {
+      const vel = Math.abs(scrollVelocityRef.current)
+      const targetOpacity = 0.35 + Math.min(vel * 1.2, 0.4)
+      matRef.current.opacity = THREE.MathUtils.lerp(matRef.current.opacity, targetOpacity, 0.05)
+      // Particle size responds subtly to scroll velocity
+      matRef.current.size = THREE.MathUtils.lerp(matRef.current.size, 0.04 + vel * 0.06, 0.08)
     }
   })
 
@@ -163,97 +344,245 @@ function FloatingParticles() {
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.05} color="#C4B5FD" transparent opacity={0.5} sizeAttenuation depthWrite={false} />
+      <pointsMaterial
+        ref={matRef}
+        size={0.04}
+        color="#C4B5FD"
+        transparent
+        opacity={0.35}
+        sizeAttenuation
+        depthWrite={false}
+      />
     </points>
   )
 }
 
-// ── Cursor-Reactive Light ────────────────────────────────────
+// ── Cursor-Reactive Light ─────────────────────────────────────
 function CursorLight() {
   const lightRef = useRef<THREE.PointLight>(null)
   const { viewport } = useThree()
-  useEffect(() => {
-    const handleMove = (e: MouseEvent) => {
-      if (!lightRef.current) return
-      const x = (e.clientX / window.innerWidth - 0.5) * viewport.width * 1.3
-      const y = -(e.clientY / window.innerHeight - 0.5) * viewport.height * 1.3
-      lightRef.current.position.set(x, y, 3.5)
-    }
-    window.addEventListener('mousemove', handleMove)
-    return () => window.removeEventListener('mousemove', handleMove)
-  }, [viewport])
-  return <pointLight ref={lightRef} color="#A855F7" intensity={5} distance={9} decay={2} />
-}
+  const targetPos = useRef(new THREE.Vector3(0, 0, 4))
 
-// ── Orbiting Ring ─────────────────────────────────────────────
-function OrbitRing({ radius, speed, color }: { radius: number; speed: number; color: string }) {
-  const ref = useRef<THREE.Group>(null)
-  useFrame(({ clock }, delta) => {
-    if (ref.current) {
-      ref.current.rotation.z = clock.getElapsedTime() * speed + (clickImpulse.current * speed * 2)
-      ref.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.1) * 0.35 + (clickImpulse.current * 0.2)
-      const targetScale = 1 + clickImpulse.current * 0.15
-      ref.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 6)
+  useFrame((_, delta) => {
+    // Spring-smooth cursor light position
+    const nx = cursor.x * viewport.width * 0.7
+    const ny = cursor.y * viewport.height * 0.7
+    targetPos.current.set(nx, ny, 4)
+    if (lightRef.current) {
+      lightRef.current.position.lerp(targetPos.current, delta * 3.5)
     }
   })
+
+  return <pointLight ref={lightRef} color="#B38CF5" intensity={4.5} distance={10} decay={1.8} />
+}
+
+// ── Background spatial rings (large concentric, faint) ────────
+function SpatialRings() {
   return (
-    <group ref={ref}>
-      <mesh>
-        <torusGeometry args={[radius, 0.011, 16, 200]} />
-        <meshBasicMaterial color={color} transparent opacity={0.3} />
-      </mesh>
+    <group>
+      {[4.5, 5.8, 7.2, 9.1].map((r, i) => (
+        <mesh key={r} rotation={[Math.PI / 2 + i * 0.15, 0, i * 0.2]}>
+          <torusGeometry args={[r, 0.005, 8, 160]} />
+          <meshBasicMaterial
+            color={i % 2 === 0 ? '#C4B5FD' : '#F9A8D4'}
+            transparent
+            opacity={0.06 - i * 0.01}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
     </group>
   )
 }
 
-// ── Scroll-Reactive Scene ─────────────────────────────────────
-function SceneContent({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
+// ── Main scroll-reactive scene container ─────────────────────
+function SceneContent({
+  scrollProgressRef,
+  scrollVelocityRef,
+}: {
+  scrollProgressRef: React.MutableRefObject<number>
+  scrollVelocityRef: React.MutableRefObject<number>
+}) {
   const groupRef = useRef<THREE.Group>(null)
+  const targetPos = useRef(new THREE.Vector3(0, 0, 0))
+  const targetScale = useRef(1)
+
   useFrame((_, delta) => {
-    // Decay the global click impulse
-    clickImpulse.current = THREE.MathUtils.damp(clickImpulse.current, 0, 4, delta)
-    
+    // Update smoothed cursor
+    cursor.x = THREE.MathUtils.lerp(cursor.x, cursor.rawX, delta * 4)
+    cursor.y = THREE.MathUtils.lerp(cursor.y, cursor.rawY, delta * 4)
+
+    const p = scrollProgressRef.current
+
+    // --- 7-phase orb choreography ---
+    // p: 0 = hero, 1 = end of page
+    let tx = 0, ty = 0, tz = 0, scale = 1
+
+    if (p < 0.15) {
+      // Phase 1 — Hero: centered, large, slight float toward cursor
+      const local = p / 0.15
+      tx = cursor.x * 0.35
+      ty = cursor.y * 0.2 - local * 0.3
+      scale = 1.0 - local * 0.04
+    } else if (p < 0.3) {
+      // Phase 2 — Scroll begins: moves down and back
+      const local = (p - 0.15) / 0.15
+      tx = cursor.x * 0.25 + local * 0.6
+      ty = -0.3 - local * 1.2
+      tz = -local * 0.5
+      scale = 0.96 - local * 0.06
+    } else if (p < 0.45) {
+      // Phase 3 — Capabilities: orb becomes atmospheric background core
+      const local = (p - 0.3) / 0.15
+      tx = 0.6 - local * 0.4
+      ty = -1.5 - local * 0.4
+      tz = -0.5 - local * 0.5
+      scale = 0.9 + local * 0.08 // slightly grows as background element
+    } else if (p < 0.55) {
+      // Phase 4 — Card arrival: moves down and further back
+      const local = (p - 0.45) / 0.10
+      tx = 0.2 - local * 0.5
+      ty = -1.9 - local * 0.5
+      tz = -1.0 - local * 0.4
+      scale = 0.98 - local * 0.05
+    } else if (p < 0.68) {
+      // Phase 5 — Statistics: partially exits frame, glow visible
+      const local = (p - 0.55) / 0.13
+      tx = -1.2 - local * 0.8
+      ty = -2.4 - local * 0.3
+      tz = -1.4
+      scale = 0.93 + local * 0.06
+    } else if (p < 0.82) {
+      // Phase 6 — Testimonials: returns, lower, reduced opacity/blur (handled in opacity)
+      const local = (p - 0.68) / 0.14
+      tx = -2.0 + local * 2.2
+      ty = -2.7 + local * 0.5
+      tz = -1.4 + local * 0.3
+      scale = 0.99 - local * 0.04
+    } else {
+      // Phase 7 — Final CTA: returns center, glow intensifies
+      const local = (p - 0.82) / 0.18
+      tx = 0.2 - local * 0.2
+      ty = -2.2 + local * 1.8
+      tz = -1.1 + local * 0.9
+      scale = 0.95 + local * 0.1
+    }
+
+    // Decay velocity between scroll events without a second page-level frame loop.
+    const vel = scrollVelocityRef.current
+    scrollVelocityRef.current = THREE.MathUtils.damp(vel, 0, 10, delta)
+    ty -= vel * 0.12
+
+    targetPos.current.set(tx, ty, tz)
+    targetScale.current = scale * BASE_SCENE_SCALE
+
     if (groupRef.current) {
-      groupRef.current.position.y = -scrollRef.current * 1.8
-      groupRef.current.rotation.y = scrollRef.current * 0.4
+      // Keep the art responsive to direct manipulation; long interpolation is
+      // perceived as input lag while scrolling or moving the pointer.
+      groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetPos.current.x, 12, delta)
+      groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetPos.current.y, 12, delta)
+      groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetPos.current.z, 12, delta)
+      groupRef.current.scale.setScalar(THREE.MathUtils.damp(groupRef.current.scale.x, targetScale.current, 12, delta))
+
+      // Subtle cursor parallax on the group itself
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(
+        groupRef.current.rotation.y,
+        cursor.x * 0.08,
+        delta * 10
+      )
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(
+        groupRef.current.rotation.x,
+        -cursor.y * 0.06,
+        delta * 10
+      )
     }
   })
+
   return (
     <group ref={groupRef}>
-      <BlobSphere />
-      <OrbitRing radius={2.6} speed={0.14} color="#C4B5FD" />
-      <OrbitRing radius={3.3} speed={-0.08} color="#F9A8D4" />
-      <OrbitRing radius={1.85} speed={0.2} color="#818CF8" />
-      <FloatingParticles />
+      {/* Background spatial rings — always present */}
+      <SpatialRings />
+
+      {/* Ambient particles */}
+      <AmbientParticles scrollVelocityRef={scrollVelocityRef} />
+
+      {/* Inner core glow */}
+      <CoreGlow />
+
+      {/* Main orb */}
+      <AIOrb />
+
+      {/* Orbital rings at varied inclinations and speeds */}
+      <OrbitalRing radius={1.68} speed={0.18} tiltX={0.9}  tiltZ={0.2}  color="#C4B5FD" opacity={0.28} tube={0.009} />
+      <OrbitalRing radius={2.1}  speed={-0.12} tiltX={0.3}  tiltZ={0.7}  color="#F9A8D4" opacity={0.20} tube={0.007} />
+      <OrbitalRing radius={2.55} speed={0.09}  tiltX={1.2}  tiltZ={-0.4} color="#818CF8" opacity={0.16} tube={0.006} />
+      <OrbitalRing radius={1.35} speed={-0.22} tiltX={0.1}  tiltZ={1.1}  color="#A5F3FC" opacity={0.14} tube={0.005} />
+
+      {/* Orbital nodes — small glowing discs/particles at different speeds */}
+      <OrbitalNode radius={1.82} speed={0.70}  offset={0}    inclinationX={0.8}  inclinationZ={0.3}  color="#E0C4FF" size={0.045} />
+      <OrbitalNode radius={2.15} speed={-1.00} offset={1.2}  inclinationX={0.3}  inclinationZ={0.9}  color="#F9A8D4" size={0.035} />
+      <OrbitalNode radius={1.55} speed={1.35}  offset={2.4}  inclinationX={1.1}  inclinationZ={0.2}  color="#818CF8" size={0.028} />
+      <OrbitalNode radius={2.38} speed={0.50}  offset={0.8}  inclinationX={0.2}  inclinationZ={1.0}  color="#C4B5FD" size={0.055} />
+      <OrbitalNode radius={1.72} speed={-1.80} offset={3.5}  inclinationX={0.7}  inclinationZ={0.5}  color="#A5F3FC" size={0.022} />
+      <OrbitalNode radius={2.62} speed={1.00}  offset={1.8}  inclinationX={1.3}  inclinationZ={0.1}  color="#F0ABFC" size={0.032} />
+
+      {/* Orbital arc fragments */}
+      <OrbitalArc radius={2.0}  speed={0.14}  offset={0}   color="#C4B5FD" opacity={0.4} />
+      <OrbitalArc radius={2.45} speed={-0.09} offset={1.5} color="#F9A8D4" opacity={0.3} />
+      <OrbitalArc radius={1.6}  speed={0.18}  offset={3.0} color="#818CF8" opacity={0.35} />
     </group>
   )
 }
 
 // ── Main Export ───────────────────────────────────────────────
 export function LandingScene3D({
-  scrollRef,
+  scrollProgressRef,
+  scrollVelocityRef,
   reducedMotion = false,
+  performanceTier = 'full',
 }: {
-  scrollRef: React.MutableRefObject<number>
+  scrollProgressRef: React.MutableRefObject<number>
+  scrollVelocityRef: React.MutableRefObject<number>
   reducedMotion?: boolean
+  performanceTier?: PerformanceTier
 }) {
   const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent)
 
+  // Track raw cursor in module-level state
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    cursor.rawX = (e.clientX / window.innerWidth  - 0.5) * 2
+    cursor.rawY = -(e.clientY / window.innerHeight - 0.5) * 2
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove, { passive: true })
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [handleMouseMove])
+
+  if (performanceTier === 'static') return null
+
   return (
     <Canvas
-      dpr={isMobile ? [1, 1.5] : [1, 2]}
+      dpr={isMobile || performanceTier === 'lite' ? [1, 1] : [1, 1.25]}
       gl={{ powerPreference: 'high-performance', antialias: false, alpha: true }}
-      camera={{ position: [0, 0, 6], fov: 45 }}
+      camera={{ position: [0, 0, 6], fov: 44 }}
       style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}
     >
-      <ambientLight intensity={0.25} />
-      <directionalLight position={[4, 6, 5]} intensity={0.5} color="#F0EDFF" />
+      <ambientLight intensity={0.18} />
+      <directionalLight position={[3, 5, 4]} intensity={0.35} color="#F5F0FF" />
       {!reducedMotion && <CursorLight />}
-      <SceneContent scrollRef={scrollRef} />
-      {!reducedMotion && !isMobile && (
+      <SceneContent
+        scrollProgressRef={scrollProgressRef}
+        scrollVelocityRef={scrollVelocityRef}
+      />
+      {!reducedMotion && !isMobile && performanceTier === 'full' && (
         <EffectComposer>
-          <Bloom luminanceThreshold={0.18} luminanceSmoothing={0.85} intensity={0.9} blendFunction={BlendFunction.ADD} />
-          <Vignette offset={0.25} darkness={0.55} blendFunction={BlendFunction.NORMAL} />
+          <Bloom
+            luminanceThreshold={0.12}
+            luminanceSmoothing={0.9}
+            intensity={0.8}
+            blendFunction={BlendFunction.ADD}
+          />
         </EffectComposer>
       )}
     </Canvas>

@@ -88,7 +88,7 @@ body {
   background-color: var(--color-ground);
   color: var(--color-text-primary);
   line-height: 1.5;
-  overflow-x: hidden;
+  overflow-x: clip;
   min-height: 100vh;
 }
 
@@ -339,6 +339,13 @@ body::after {
    ══════════════════════════════════════════════════════════ */
 .page-section {
   padding: var(--space-8);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.page-section > header {
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .dashboard-grid-charts {
@@ -368,6 +375,40 @@ body::after {
   
   .dashboard-grid-bottom {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1023px) {
+  .review-main-layout,
+  .topic-main-layout,
+  .complaint-main-layout {
+    display: block !important;
+  }
+
+  .detail-drawer {
+    position: fixed;
+    top: 76px;
+    right: 16px;
+    bottom: 76px;
+    width: min(420px, calc(100vw - 32px)) !important;
+    max-width: calc(100vw - 32px);
+    z-index: var(--z-modal);
+    box-shadow: 0 20px 60px rgba(28, 16, 51, 0.22);
+  }
+
+  .review-empty-state {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .detail-drawer {
+    top: 68px;
+    right: 12px;
+    bottom: 72px;
+    width: auto !important;
+    max-width: none;
+    padding: 18px !important;
   }
 }
 

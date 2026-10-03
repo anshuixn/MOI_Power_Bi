@@ -16,6 +16,9 @@ import {
   RATING_DISTRIBUTION,
   SOURCE_BREAKDOWN,
   PRODUCT_BREAKDOWN,
+  BASELINE_AVERAGE_RATING,
+  BASELINE_SENTIMENT,
+  BASELINE_TOTAL_REVIEWS,
 } from '@/data/mockData'
 
 // Deterministic filter multipliers (not random)
@@ -24,9 +27,38 @@ function getFilterMultiplier(filters: FilterState): number {
   if (filters.dateRange === 'last_7_days') m *= 0.22
   else if (filters.dateRange === 'last_30_days') m *= 1.0
   else if (filters.dateRange === 'last_90_days') m *= 2.84
+  else if (
+    filters.dateRange === 'custom' &&
+    filters.customDateStart &&
+    filters.customDateEnd
+  ) {
+    const start = Date.parse(filters.customDateStart)
+    const end = Date.parse(filters.customDateEnd)
+    if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
+      const days = Math.floor((end - start) / 86_400_000) + 1
+      m *= days / 30
+    }
+  }
   if (filters.productId !== null) m *= 0.31
   if (filters.source !== null) m *= 0.42
   return m
+}
+
+function scaleCountsToTotal<T extends Record<string, number>>(
+  counts: T,
+  targetTotal: number,
+): T {
+  const sourceTotal = Object.values(counts).reduce((sum, value) => sum + value, 0)
+  const entries: [string, number][] = Object.entries(counts).map(([key, count]) => [
+    key,
+    Math.round((count / sourceTotal) * targetTotal),
+  ])
+  const currentTotal = entries.reduce((sum, [, count]) => sum + count, 0)
+  const largestEntry = entries.reduce((largest, entry) =>
+    entry[1] > largest[1] ? entry : largest
+  )
+  largestEntry[1] += targetTotal - currentTotal
+  return Object.fromEntries(entries) as T
 }
 
 function makeDelta(pct: number, isPositiveGood: boolean): KPICard['delta'] {
@@ -54,12 +86,19 @@ export class MockAnalyticsService implements IAnalyticsService {
     await sleep(getLatency(filters))
 
     const m = getFilterMultiplier(filters)
-    const totalReviews = Math.round(128430 * m)
-    const avgRating = 4.21 - (m < 0.5 ? 0.12 : 0)
-    const positivePct = 62.4 + (m < 0.3 ? -2.1 : 0)
-    const neutralPct = 21.1 + (m < 0.3 ? 1.2 : 0)
+    const totalReviews = Math.round(BASELINE_TOTAL_REVIEWS * m)
+    const avgRating = BASELINE_AVERAGE_RATING
+    const positivePct = BASELINE_SENTIMENT.positive
+    const neutralPct = BASELINE_SENTIMENT.neutral
     const negativePct = parseFloat((100 - positivePct - neutralPct).toFixed(1))
-    const activeComplaints = Math.round(342 * Math.min(m, 1.0))
+    const complaints = COMPLAINTS.map(complaint => ({
+      ...complaint,
+      activeCount: Math.round(complaint.activeCount * Math.min(m, 1.0)),
+    }))
+    const activeComplaints = complaints.reduce(
+      (sum, complaint) => sum + complaint.activeCount,
+      0,
+    )
 
     const summary: AnalyticsSummary = {
       totalReviews: {
@@ -122,22 +161,13 @@ export class MockAnalyticsService implements IAnalyticsService {
         ...t,
         mentions: Math.round(t.mentions * m),
       })),
-      complaints: COMPLAINTS.map(c => ({
-        ...c,
-        activeCount: Math.round(c.activeCount * Math.min(m, 1.0)),
-      })),
+      complaints,
       recentInsights: INSIGHTS.slice(0, 6),
       spotlightReview: SPOTLIGHT_REVIEW,
       modelHealth: MODEL_HEALTH_DATA,
-      ratingDistribution: Object.fromEntries(
-        Object.entries(RATING_DISTRIBUTION).map(([k, v]) => [k, Math.round(v * m)])
-      ) as Record<1 | 2 | 3 | 4 | 5, number>,
-      sourceBreakdown: Object.fromEntries(
-        Object.entries(SOURCE_BREAKDOWN).map(([k, v]) => [k, Math.round(v * m)])
-      ) as typeof SOURCE_BREAKDOWN,
-      productBreakdown: Object.fromEntries(
-        Object.entries(PRODUCT_BREAKDOWN).map(([k, v]) => [k, Math.round(v * m)])
-      ),
+      ratingDistribution: scaleCountsToTotal(RATING_DISTRIBUTION, totalReviews) as Record<1 | 2 | 3 | 4 | 5, number>,
+      sourceBreakdown: scaleCountsToTotal(SOURCE_BREAKDOWN, totalReviews),
+      productBreakdown: scaleCountsToTotal(PRODUCT_BREAKDOWN, totalReviews),
     }
 
     return { status: 'success', data: summary }

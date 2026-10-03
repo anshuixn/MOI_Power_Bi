@@ -9,7 +9,7 @@ import { useApp } from '@/hooks/useApp'
 import type { AnalyticsSummary } from '@/types'
 
 export function AiInsights() {
-  const { filters } = useApp()
+  const { filters, prefersReducedMotion } = useApp()
   const [data, setData] = useState<AnalyticsSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [regenerating, setRegenerating] = useState(false)
@@ -96,9 +96,9 @@ export function AiInsights() {
                 padding: 24, 
                 display: 'flex', 
                 flexDirection: 'column',
-                animation: `slideUpFadeIn 0.5s ease forwards ${idx * 0.1}s`,
-                opacity: 0,
-                transform: 'translateY(20px)'
+                animation: prefersReducedMotion ? 'none' : `slideUpFadeIn 0.4s ease both ${idx * 0.05}s`,
+                opacity: prefersReducedMotion ? 1 : undefined,
+                transform: prefersReducedMotion ? 'none' : undefined
               }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>

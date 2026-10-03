@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://moi-power-bi.vercel.app/sitemap.xml

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AppProvider } from '@/hooks/useApp'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ToastProvider } from '@/components/feedback/Toast'
+import { RouteMetadata } from '@/components/seo/RouteMetadata'
 
 // Lazy loaded routes for performance (code splitting)
 const Landing = lazy(() => import('@/pages/Landing').then(m => ({ default: m.Landing })))
@@ -31,6 +32,7 @@ export default function App() {
     <AppProvider>
       <ToastProvider>
         <BrowserRouter>
+          <RouteMetadata />
           <AppLayout>
             <Suspense fallback={PageLoader}>
               <Routes>

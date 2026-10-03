@@ -2,7 +2,7 @@
 // ReviewBand Sidebar — Glassmorphism + Edge Reveal + Edge Glow
 // ============================================================
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -260,12 +260,6 @@ export function Sidebar() {
     }
   }, [isOpen, prefersReducedMotion])
 
-  // Initial state setup for animation
-  useEffect(() => {
-    if (prefersReducedMotion || !sidebarRef.current) return
-    gsap.set(sidebarRef.current, { x: '-95%', opacity: 0.8 })
-  }, [prefersReducedMotion])
-
   // Static styling for reduced motion
   const staticStyles: React.CSSProperties = prefersReducedMotion ? {
     transform: 'translateX(0)',
@@ -281,6 +275,7 @@ export function Sidebar() {
       {/* Edge Trigger Zone */}
       {!prefersReducedMotion && (
         <div
+          data-testid="sidebar-edge-trigger"
           onMouseEnter={handleEnter}
           onMouseLeave={handleLeave}
           style={{
@@ -318,6 +313,8 @@ export function Sidebar() {
           background: 'rgba(255, 255, 255, 0.65)',
           backdropFilter: prefersReducedMotion ? 'blur(24px) saturate(135%)' : 'blur(8px) saturate(100%)',
           WebkitBackdropFilter: prefersReducedMotion ? 'blur(24px) saturate(135%)' : 'blur(8px) saturate(100%)',
+          transform: prefersReducedMotion ? 'translateX(0)' : 'translateX(-95%)',
+          opacity: prefersReducedMotion ? 1 : 0.8,
           borderRight: '1px solid rgba(255, 255, 255, 0.70)',
           zIndex: 20,
           overflowY: 'auto',

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Activity, CheckCircle, AlertTriangle, XCircle, Cpu, Clock, Zap } from 'lucide-react'
-import { analyticsService } from '@/services/mock/analyticsService'
-import { useApp } from '@/hooks/useApp'
+import { modelHealthService } from '@/services/mock/modelHealthService'
 import type { ModelHealth as ModelHealthType, ComponentStatus } from '@/types'
 
 function StatusDot({ status }: { status: ComponentStatus }) {
@@ -61,21 +60,19 @@ function RadarChart({ data }: { data: { label: string; value: number }[] }) {
 }
 
 export function ModelHealth() {
-  const { filters } = useApp()
   const [health, setHealth] = useState<ModelHealthType | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
-    setLoading(true)
-    analyticsService.getSummary(filters).then(res => {
+    modelHealthService.getModelHealth().then(res => {
       if (active && res.status === 'success') {
-        setHealth(res.data.modelHealth)
+        setHealth(res.data)
         setLoading(false)
       }
     })
     return () => { active = false }
-  }, [filters])
+  }, [])
 
   const statusIcon = (s: ComponentStatus) => {
     if (s === 'online') return <CheckCircle size={16} style={{ color: '#10B981' }} />
@@ -178,7 +175,11 @@ export function ModelHealth() {
                       </div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#1C1033' }}>{comp.name}</div>
-                        {comp.metric && <div style={{ fontSize: 11, color: '#8B83A3' }}>{comp.metric}: {comp.metricValue}</div>}
+                        {comp.metric && comp.metricValue !== undefined && (
+                          <div style={{ fontSize: 11, color: '#8B83A3' }}>
+                            {comp.metric}: {comp.metricValue.toFixed(1)}%
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#8B83A3' }}>

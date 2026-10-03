@@ -549,15 +549,17 @@ function Scene() {
 // ─── EXPORT ──────────────────────────────────────────────────
 
 export function Background3D() {
+  const { performanceTier, prefersReducedMotion } = useApp()
+
+  if (performanceTier === 'static' || prefersReducedMotion) return null
+
   return (
     <div
       style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
+        inset: 0,
         zIndex: -1,
+        opacity: 0.1,
         // Allow pointer events so 3D objects are interactive;
         // UI components (zIndex: 10+) will naturally capture their own events first.
         pointerEvents: 'auto',
@@ -567,7 +569,7 @@ export function Background3D() {
       <Canvas
         camera={{ position: [0, 0, 10], fov: 45 }}
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
-        dpr={[1, 1.5]}
+        dpr={performanceTier === 'lite' ? [0.75, 1] : [1, 1.5]}
         style={{ width: '100%', height: '100%' }}
       >
         <Scene />

@@ -51,11 +51,14 @@ export function NotificationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         aria-hidden="true" 
       />
       <div
+        role="dialog"
+        aria-label="Notifications"
+        aria-modal="true"
         style={{
           position: 'fixed',
           top: 72, // Below topbar
-          right: 24,
-          width: 380,
+          right: 12,
+          width: 'min(380px, calc(100vw - 24px))',
           maxHeight: 'calc(100vh - 96px)',
           display: 'flex',
           flexDirection: 'column',

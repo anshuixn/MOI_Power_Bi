@@ -74,7 +74,7 @@ export function TopicIntelligence() {
       </header>
 
       {/* Main Layout */}
-      <div style={{ display: 'flex', gap: 24, flex: 1, minHeight: 0 }}>
+      <div className="topic-main-layout" style={{ display: 'flex', gap: 24, flex: 1, minHeight: 0 }}>
         
         {/* Masonry Grid of Topics */}
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 24 }}>
@@ -90,6 +90,15 @@ export function TopicIntelligence() {
                   key={topic.id} 
                   className="glass-card interactive"
                   onClick={() => setSelectedTopic(topic)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setSelectedTopic(topic)
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open ${topic.name} topic details`}
                   style={{ 
                     cursor: 'pointer',
                     border: selectedTopic?.id === topic.id ? '1px solid #7C3AED' : undefined,
@@ -127,13 +136,13 @@ export function TopicIntelligence() {
 
         {/* Detail Drawer (Side Panel) */}
         {selectedTopic && (
-          <div className="glass-card" style={{ width: 400, padding: 24, display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto' }}>
+          <div className="glass-card detail-drawer" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <h3 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 600 }}>{selectedTopic.name}</h3>
                 <div style={{ fontSize: 14, color: '#8B83A3' }}>{selectedTopic.mentions.toLocaleString()} total mentions</div>
               </div>
-              <button className="glass-interactive" onClick={() => setSelectedTopic(null)} style={{ width: 32, height: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              <button aria-label="Close topic details" className="glass-interactive" onClick={() => setSelectedTopic(null)} style={{ width: 32, height: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             </div>
             
             <div className="glass-secondary" style={{ padding: 20 }}>

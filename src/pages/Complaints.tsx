@@ -105,7 +105,7 @@ export function Complaints() {
       </header>
 
       {/* Main Layout */}
-      <div style={{ display: 'flex', gap: 24, flex: 1, minHeight: 0 }}>
+      <div className="complaint-main-layout" style={{ display: 'flex', gap: 24, flex: 1, minHeight: 0 }}>
         
         {/* List of Complaints */}
         <div className="glass-card" style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
@@ -121,6 +121,15 @@ export function Complaints() {
                   key={complaint.id} 
                   className="glass-secondary interactive"
                   onClick={() => setSelectedComplaint(complaint)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setSelectedComplaint(complaint)
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open ${complaint.category} details`}
                   style={{ 
                     cursor: 'pointer',
                     border: selectedComplaint?.id === complaint.id ? '1px solid #7C3AED' : undefined,
@@ -153,13 +162,13 @@ export function Complaints() {
 
         {/* Detail Drawer (Side Panel) */}
         {selectedComplaint && (
-          <div className="glass-card" style={{ width: 420, padding: 24, display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto' }}>
+          <div className="glass-card detail-drawer" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <SeverityBadge severity={selectedComplaint.severity} />
                 <h3 style={{ margin: '8px 0 4px', fontSize: 22, fontWeight: 600 }}>{selectedComplaint.category}</h3>
               </div>
-              <button className="glass-interactive" onClick={() => setSelectedComplaint(null)} style={{ width: 32, height: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              <button aria-label="Close complaint details" className="glass-interactive" onClick={() => setSelectedComplaint(null)} style={{ width: 32, height: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             </div>
             
             <p style={{ margin: 0, fontSize: 15, color: '#4B4466', lineHeight: 1.6 }}>

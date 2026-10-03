@@ -1,10 +1,15 @@
 // ============================================================
-// ReviewBand — Immersive Scroll Landing Page
-// Cinematic multi-section experience with GSAP ScrollTrigger
-// 3D background, parallax, reveal animations
+// ReviewBand — Cinematic AI Landing Page
+// Premium scroll experience with:
+// • 7-phase AI orb choreography driven by scroll progress
+// • Natural floating card entrance (no PowerPoint-style animation)
+// • Scroll-velocity physics with damping
+// • Cursor-reactive hero
+// • Cinematic workspace transition via orb light-gather effect
+// • Fully accessible: prefers-reduced-motion respected
 // ============================================================
 
-import { useRef, useEffect, Suspense, lazy } from 'react'
+import { useRef, useEffect, Suspense, lazy, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import gsap from 'gsap'
 import ScrollTrigger from 'gsap/ScrollTrigger'
@@ -13,8 +18,15 @@ import {
   ArrowRight, Sparkles, BarChart3, Brain, Zap,
   Star, TrendingUp, Shield, ChevronDown
 } from 'lucide-react'
-import { ReviewBandLogo } from '@/components/navigation/Logo'
+
 import { useApp } from '@/hooks/useApp'
+import {
+  BASELINE_ACTIVE_COMPLAINTS,
+  BASELINE_AVERAGE_RATING,
+  BASELINE_SENTIMENT,
+  BASELINE_TOTAL_REVIEWS,
+  REVIEWS,
+} from '@/data/mockData'
 
 const LandingScene3D = lazy(() =>
   import('@/components/three/LandingScene3D').then(m => ({ default: m.LandingScene3D }))
@@ -22,55 +34,101 @@ const LandingScene3D = lazy(() =>
 
 gsap.registerPlugin(ScrollTrigger, useGSAP)
 
-// ── Feature Card ──────────────────────────────────────────────
+// ── Feature Card — floating, hover-sensitive 3D tilt ─────────
 function FeatureCard({
-  icon: Icon, title, desc, gradient, delay
+  icon: Icon,
+  title,
+  desc,
+  gradient,
+  yOffset = 0,
 }: {
   icon: typeof BarChart3
   title: string
   desc: string
   gradient: string
-  delay: number
+  yOffset?: number
 }) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const tiltFrameRef = useRef<number | null>(null)
+  const pointerRef = useRef({ x: 0, y: 0 })
+
+  useEffect(() => () => {
+    if (tiltFrameRef.current !== null) {
+      cancelAnimationFrame(tiltFrameRef.current)
+    }
+  }, [])
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    pointerRef.current = { x: e.clientX, y: e.clientY }
+    if (tiltFrameRef.current !== null) return
+
+    tiltFrameRef.current = requestAnimationFrame(() => {
+      const card = cardRef.current
+      tiltFrameRef.current = null
+      if (!card) return
+
+      const rect = card.getBoundingClientRect()
+      const dx = (pointerRef.current.x - (rect.left + rect.width / 2)) / (rect.width / 2)
+      const dy = (pointerRef.current.y - (rect.top + rect.height / 2)) / (rect.height / 2)
+      card.style.transition = 'transform 0s, box-shadow 0.18s ease, border-color 0.18s ease'
+      card.style.transform = `translateY(${yOffset - 6}px) perspective(800px) rotateX(${-dy * 3}deg) rotateY(${dx * 3}deg)`
+      card.style.boxShadow = '0 24px 64px rgba(124,58,237,0.18), 0 4px 16px rgba(0,0,0,0.06)'
+      card.style.borderColor = 'rgba(196,181,253,0.55)'
+    })
+  }
+
+  const handleMouseLeave = () => {
+    const card = cardRef.current
+    if (!card) return
+    if (tiltFrameRef.current !== null) {
+      cancelAnimationFrame(tiltFrameRef.current)
+      tiltFrameRef.current = null
+    }
+    card.style.transition = 'transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease, border-color 0.18s ease'
+    card.style.transform = `translateY(${yOffset}px) perspective(800px) rotateX(0deg) rotateY(0deg)`
+    card.style.boxShadow = '0 8px 36px rgba(124,58,237,0.09), 0 2px 8px rgba(0,0,0,0.04)'
+    card.style.borderColor = 'rgba(255,255,255,0.72)'
+  }
+
   return (
     <div
+      ref={cardRef}
       className="feat-card"
-      data-delay={delay}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       style={{
         padding: '32px 28px',
         borderRadius: 24,
-        background: 'rgba(255,255,255,0.45)',
-        backdropFilter: 'blur(24px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(140%)',
-        border: '1px solid rgba(255,255,255,0.75)',
-        boxShadow: '0 8px 32px rgba(124,58,237,0.08), 0 2px 8px rgba(0,0,0,0.04)',
-        transition: 'transform 0.35s ease, box-shadow 0.35s ease',
+        background: 'rgba(255,255,255,0.42)',
+        backdropFilter: 'blur(28px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(150%)',
+        border: '1px solid rgba(255,255,255,0.72)',
+        boxShadow: '0 8px 36px rgba(124,58,237,0.09), 0 2px 8px rgba(0,0,0,0.04)',
+        transition: 'transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease, border-color 0.18s ease',
         cursor: 'default',
+        // Initial state — GSAP animates opacity/scale/filter on scroll reveal
         opacity: 0,
-        transform: 'translateY(40px)',
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = 'translateY(-6px)'
-        e.currentTarget.style.boxShadow = '0 20px 60px rgba(124,58,237,0.18), 0 4px 16px rgba(0,0,0,0.06)'
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.boxShadow = '0 8px 32px rgba(124,58,237,0.08), 0 2px 8px rgba(0,0,0,0.04)'
+        filter: 'blur(6px)',
+        willChange: 'transform, opacity, filter',
       }}
     >
+      {/* Icon */}
       <div style={{
         width: 48, height: 48, borderRadius: 16,
         background: gradient,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         marginBottom: 20,
-        boxShadow: '0 4px 16px rgba(124,58,237,0.25)',
+        boxShadow: '0 4px 18px rgba(124,58,237,0.28)',
       }}>
-        <Icon size={22} color="#fff" strokeWidth={1.8} />
+        <Icon size={21} color="#fff" strokeWidth={1.7} />
       </div>
-      <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1C1033', marginBottom: 10, letterSpacing: '-0.02em' }}>
+      <h3 style={{
+        fontSize: 17.5, fontWeight: 700, color: '#1C1033',
+        marginBottom: 10, letterSpacing: '-0.025em'
+      }}>
         {title}
       </h3>
-      <p style={{ fontSize: 14.5, color: '#4B4466', lineHeight: 1.65 }}>
+      <p style={{ fontSize: 14.5, color: '#4B4466', lineHeight: 1.68 }}>
         {desc}
       </p>
     </div>
@@ -80,12 +138,12 @@ function FeatureCard({
 // ── Stat Item ─────────────────────────────────────────────────
 function StatItem({ value, label }: { value: string; label: string }) {
   return (
-    <div className="stat-item" style={{ textAlign: 'center', opacity: 0, transform: 'translateY(30px)' }}>
+    <div className="stat-item" style={{ textAlign: 'center', opacity: 0, transform: 'translateY(28px)' }}>
       <div style={{
-        fontSize: 'clamp(2.5rem, 5vw, 4rem)',
+        fontSize: 'clamp(2.2rem, 4.5vw, 3.6rem)',
         fontWeight: 800,
-        letterSpacing: '-0.04em',
-        background: 'linear-gradient(135deg, #7C3AED, #EC4899)',
+        letterSpacing: '-0.045em',
+        background: 'linear-gradient(135deg, #7C3AED 20%, #EC4899 80%)',
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',
         backgroundClip: 'text',
@@ -94,171 +152,291 @@ function StatItem({ value, label }: { value: string; label: string }) {
       }}>
         {value}
       </div>
-      <div style={{ fontSize: 15, color: '#6B5F8A', fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: 14.5, color: '#6B5F8A', fontWeight: 500 }}>{label}</div>
     </div>
+  )
+}
+
+// ── Workspace Transition Overlay ──────────────────────────────
+function WorkspaceOverlay({ active }: { active: boolean }) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        pointerEvents: active ? 'all' : 'none',
+        opacity: 0,
+        background: 'radial-gradient(ellipse at 50% 50%, rgba(168,85,247,0.9) 0%, rgba(124,58,237,0.97) 40%, #0D0620 100%)',
+        transition: 'none',
+      }}
+      id="workspace-overlay"
+    />
   )
 }
 
 // ── Main Landing Page ─────────────────────────────────────────
 export function Landing() {
   const navigate = useNavigate()
-  const { prefersReducedMotion } = useApp()
+  const { prefersReducedMotion, performanceTier } = useApp()
   const containerRef = useRef<HTMLDivElement>(null)
-  const scrollRef = useRef(0)
+  const scrollProgressRef = useRef(0)
+  const scrollVelocityRef = useRef(0)
+  const isTransitioning = useRef(false)
+  const [overlayActive, setOverlayActive] = useState(false)
 
-  // Track scroll progress for 3D scene
+  // Track scroll progress + velocity for 3D scene
   useEffect(() => {
-    const handleScroll = () => {
+    let prevScrollY = window.scrollY
+    let lastTime = performance.now()
+    let rafId = 0
+
+    const updateScrollState = () => {
+      const now = performance.now()
+      const dt = Math.max(now - lastTime, 1)
+      const currentY = window.scrollY
       const max = document.body.scrollHeight - window.innerHeight
-      scrollRef.current = max > 0 ? window.scrollY / max : 0
+      scrollProgressRef.current = max > 0 ? currentY / max : 0
+      const rawVel = (currentY - prevScrollY) / dt
+      scrollVelocityRef.current = rawVel * 0.65 + scrollVelocityRef.current * 0.35
+      prevScrollY = currentY
+      lastTime = now
     }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
+
+    const onScroll = () => {
+      if (rafId) return
+      rafId = requestAnimationFrame(() => {
+        rafId = 0
+        updateScrollState()
+      })
+    }
+
+    updateScrollState()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      cancelAnimationFrame(rafId)
+    }
   }, [])
 
   useGSAP(() => {
-    if (prefersReducedMotion) return
+    if (prefersReducedMotion) {
+      // Still reveal content, just no animation
+      gsap.set(['.hero-badge', '.hero-headline .line', '.hero-sub', '.hero-cta', '.scroll-hint'], { opacity: 1, y: 0 })
+      gsap.set('.feat-card', { opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 })
+      gsap.set('.stat-item', { opacity: 1, y: 0 })
+      return
+    }
 
     const ctx = gsap.context(() => {
-      // ── Hero entrance ────────────────────────────────────
-      const hereTl = gsap.timeline({ defaults: { ease: 'power3.out' } })
-      hereTl
-        .from('.hero-logo', { scale: 0.7, opacity: 0, duration: 1.1, ease: 'back.out(1.5)' })
-        .from('.hero-badge', { y: 24, opacity: 0, duration: 0.8 }, '-=0.6')
-        .from('.hero-headline .line', { y: 40, opacity: 0, duration: 1, stagger: 0.12 }, '-=0.55')
-        .from('.hero-sub', { y: 20, opacity: 0, duration: 0.8 }, '-=0.6')
-        .from('.hero-cta', { y: 20, opacity: 0, duration: 0.8, stagger: 0.1 }, '-=0.55')
-        .from('.scroll-hint', { opacity: 0, duration: 0.6 }, '-=0.3')
 
-      // ── Logo float ───────────────────────────────────────
-      gsap.to('.hero-logo-inner', {
-        y: -12, duration: 3.2, ease: 'sine.inOut', yoyo: true, repeat: -1,
-      })
+      // ── Hero entrance — staggered, elegant ─────────────────
+      const heroTl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+      heroTl
+        .from('.hero-badge',         { y: 20, opacity: 0, duration: 0.9 }, 0.2)
+        .from('.hero-headline .line', { y: 44, opacity: 0, duration: 1.1, stagger: 0.14 }, 0.45)
+        .from('.hero-sub',            { y: 18, opacity: 0, duration: 0.85 }, 0.85)
+        .from('.scroll-hint',         { opacity: 0, duration: 0.7 }, 1.5)
 
-      // ── Section heading parallax reveal ──────────────────
-      gsap.utils.toArray<HTMLElement>('.reveal-heading').forEach(el => {
-        gsap.from(el, {
-          scrollTrigger: { trigger: el, start: 'top 80%', toggleActions: 'play none none none' },
-          y: 36, opacity: 0, duration: 0.9, ease: 'power3.out',
-        })
-      })
-
-      // ── Feature cards stagger ────────────────────────────
-      gsap.utils.toArray<HTMLElement>('.feat-card').forEach((card, i) => {
-        gsap.to(card, {
-          scrollTrigger: { trigger: card, start: 'top 88%', toggleActions: 'play none none none' },
-          y: 0, opacity: 1, duration: 0.75, delay: i * 0.08, ease: 'power3.out',
-        })
-      })
-
-      // ── Stats counter ────────────────────────────────────
-      gsap.utils.toArray<HTMLElement>('.stat-item').forEach((el, i) => {
-        gsap.to(el, {
-          scrollTrigger: { trigger: el, start: 'top 85%' },
-          y: 0, opacity: 1, duration: 0.8, delay: i * 0.12, ease: 'power3.out',
-        })
-      })
-
-      // ── Floating testimonial cards ────────────────────────
-      gsap.utils.toArray<HTMLElement>('.review-card').forEach((card, i) => {
-        gsap.from(card, {
-          scrollTrigger: { trigger: card, start: 'top 90%' },
-          x: i % 2 === 0 ? -60 : 60,
-          opacity: 0,
-          duration: 0.9,
-          ease: 'power3.out',
-          delay: i * 0.12,
-        })
-      })
-
-      // ── CTA section ──────────────────────────────────────
-      gsap.from('.cta-section', {
-        scrollTrigger: { trigger: '.cta-section', start: 'top 85%' },
-        scale: 0.94, opacity: 0, duration: 1, ease: 'power3.out',
-      })
-
-      // ── Sticky hero scale on scroll ───────────────────────
+      // ── Hero scale/fade on scroll — parallax exit ──────────
       gsap.to('.hero-content', {
         scrollTrigger: {
           trigger: '.hero-section',
           start: 'top top',
-          end: 'bottom top',
-          scrub: 1.5,
+          end: '70% top',
+          scrub: true,
         },
-        scale: 0.88,
+        y: -50,
+        scale: 0.92,
         opacity: 0,
-        y: -60,
         ease: 'none',
       })
 
-      // ── Divider line reveal ───────────────────────────────
+      // Scroll hint fades when scrolling begins
+      gsap.to('.scroll-hint', {
+        scrollTrigger: {
+          trigger: '.hero-section',
+          start: '5% top',
+          end: '20% top',
+          scrub: true,
+        },
+        opacity: 0,
+        y: -8,
+      })
+
+      // ── Section headings reveal ─────────────────────────────
+      gsap.utils.toArray<HTMLElement>('.reveal-heading').forEach(el => {
+        gsap.from(el, {
+          scrollTrigger: { trigger: el, start: 'top 82%', toggleActions: 'play none none none' },
+          y: 30, opacity: 0, duration: 0.85, ease: 'power3.out',
+        })
+      })
+
+      // ── Feature cards — natural floating emergence ──────────
+      // NOT a simple translateY slide. Cards start blurred, smaller, below — and
+      // gently float into focus, as if the camera is bringing them into frame.
+      gsap.utils.toArray<HTMLElement>('.feat-card').forEach((card, i) => {
+        gsap.fromTo(card,
+          {
+            opacity: 0,
+            y: 42,
+            scale: 0.965,
+            filter: 'blur(7px)',
+          },
+          {
+            scrollTrigger: { trigger: card, start: 'top 88%', toggleActions: 'play none none none' },
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            filter: 'blur(0px)',
+            duration: 1.05,
+            delay: i * 0.12, // subtle stagger: 0, 120ms, 240ms
+            ease: 'power2.out',
+          }
+        )
+      })
+
+      // ── Stats reveal ────────────────────────────────────────
+      gsap.utils.toArray<HTMLElement>('.stat-item').forEach((el, i) => {
+        gsap.to(el, {
+          scrollTrigger: { trigger: el, start: 'top 86%' },
+          y: 0, opacity: 1, duration: 0.85, delay: i * 0.11, ease: 'power3.out',
+        })
+      })
+
+      // ── Testimonial cards — gentle float from slight y offset
+      gsap.utils.toArray<HTMLElement>('.review-card').forEach((card, i) => {
+        gsap.fromTo(card,
+          { opacity: 0, y: 36, scale: 0.975, filter: 'blur(5px)' },
+          {
+            scrollTrigger: { trigger: card, start: 'top 90%' },
+            opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
+            duration: 0.95, delay: i * 0.13, ease: 'power2.out',
+          }
+        )
+      })
+
+      // ── CTA section ─────────────────────────────────────────
+      gsap.fromTo('.cta-section',
+        { scale: 0.96, opacity: 0, y: 24 },
+        {
+          scrollTrigger: { trigger: '.cta-section', start: 'top 88%' },
+          scale: 1, opacity: 1, y: 0, duration: 1.1, ease: 'power3.out',
+        }
+      )
+
+      // ── Divider line reveal ──────────────────────────────────
       gsap.utils.toArray<HTMLElement>('.divider-line').forEach(el => {
         gsap.from(el, {
           scrollTrigger: { trigger: el, start: 'top 90%' },
-          scaleX: 0, duration: 1.2, ease: 'power2.out', transformOrigin: 'left center',
+          scaleX: 0, duration: 1.4, ease: 'power2.out', transformOrigin: 'left center',
         })
       })
+
     }, containerRef)
 
     return () => ctx.revert()
   }, { scope: containerRef })
 
+  // Cinematic workspace transition
   const handleEnter = () => {
-    if (prefersReducedMotion) { navigate('/dashboard'); return }
-    gsap.to(containerRef.current, {
-      opacity: 0, scale: 0.96, duration: 0.5, ease: 'power2.inOut',
+    if (isTransitioning.current) return
+    isTransitioning.current = true
+
+    if (prefersReducedMotion) {
+      navigate('/dashboard')
+      return
+    }
+
+    setOverlayActive(true)
+
+    // Sequence: content dims → orb gathers → overlay blooms → navigate
+    const tl = gsap.timeline({
       onComplete: () => navigate('/dashboard'),
     })
+
+    tl
+      .to('.hero-content, .feat-card, .stat-item, .review-card, .cta-section', {
+        opacity: 0, y: -20, duration: 0.5, ease: 'power2.in', stagger: 0.02,
+      })
+      .to('#workspace-overlay', {
+        opacity: 1,
+        duration: 0.75,
+        ease: 'power2.inOut',
+      }, '-=0.2')
   }
 
   const features = [
     {
-      icon: Brain, title: 'AI Sentiment Engine',
-      desc: 'Understand customer emotion at scale. Our NLP model processes thousands of reviews in seconds.',
+      icon: Brain,
+      title: 'AI Sentiment Engine',
+      desc: 'Explore positive, neutral, and negative sentiment across the ReviewBand sample review dataset.',
       gradient: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+      yOffset: 8,
     },
     {
-      icon: BarChart3, title: 'Real-time Analytics',
-      desc: 'Live dashboards with streaming data. Every review, every trend, every insight — instantly.',
+      icon: BarChart3,
+      title: 'Review Analytics',
+      desc: 'Compare review ratings, customer sentiment, and source mix with a consistent sample dataset.',
       gradient: 'linear-gradient(135deg, #2563EB, #7C3AED)',
+      yOffset: 0,
     },
     {
-      icon: Zap, title: 'Instant Intelligence',
-      desc: 'From raw review to actionable insight in under 200ms. Speed is our competitive advantage.',
+      icon: Zap,
+      title: 'Actionable Signals',
+      desc: 'Bring emerging topics and complaint patterns into focus so teams can decide what to investigate.',
       gradient: 'linear-gradient(135deg, #EC4899, #A855F7)',
+      yOffset: 8,
     },
     {
-      icon: TrendingUp, title: 'Predictive Trends',
-      desc: 'Spot emerging themes before they go viral. Stay ahead with predictive topic modeling.',
+      icon: TrendingUp,
+      title: 'Topic Trends',
+      desc: 'See which themes are rising, stable, or falling across the sample customer feedback.',
       gradient: 'linear-gradient(135deg, #059669, #2563EB)',
+      yOffset: 0,
     },
     {
-      icon: Shield, title: 'Enterprise Security',
-      desc: 'SOC 2 compliant, end-to-end encrypted. Your customer data stays private and secure.',
+      icon: Shield,
+      title: 'Privacy Signals',
+      desc: 'Inspect the demo review records alongside their PII-processing status and redaction metadata.',
       gradient: 'linear-gradient(135deg, #D97706, #EC4899)',
+      yOffset: 8,
     },
     {
-      icon: Star, title: 'Review Intelligence',
-      desc: 'Deep dive into individual reviews. Cluster similar feedback. Prioritize what matters most.',
+      icon: Star,
+      title: 'Review Intelligence',
+      desc: 'Deep dive into individual reviews. Cluster similar feedback. Prioritize what matters most to your business.',
       gradient: 'linear-gradient(135deg, #7C3AED, #059669)',
+      yOffset: 0,
     },
   ]
 
-  const reviews = [
-    { text: 'ReviewBand transformed how we understand our customers. The AI insights are incredibly accurate.', author: 'Sarah K.', role: 'Head of CX, TechCorp', stars: 5 },
-    { text: 'Setup took 10 minutes. The ROI was visible within a week. This is the future of feedback analysis.', author: 'Marcus R.', role: 'VP Product, ScaleUp', stars: 5 },
-    { text: 'The 3D visualization of sentiment trends is unlike anything I\'ve seen. Absolutely stunning.', author: 'Priya M.', role: 'Data Director, Nexus', stars: 5 },
-  ]
+  const reviews = REVIEWS.slice(0, 3).map(review => ({
+    text: review.text,
+    author: `Customer ${review.authorInitial}`,
+    role: `${review.productName} · ${review.date}`,
+    stars: review.rating,
+  }))
 
   return (
     <div ref={containerRef} style={{ position: 'relative', minHeight: '100vh', overflowX: 'hidden' }}>
 
-      {/* ── 3D Background Canvas ───────────────────────────── */}
+      {/* Workspace transition overlay */}
+      <WorkspaceOverlay active={overlayActive} />
+
+      {/* 3D AI Orb Canvas */}
       <Suspense fallback={null}>
-        <LandingScene3D scrollRef={scrollRef} reducedMotion={prefersReducedMotion} />
+        <LandingScene3D
+          scrollProgressRef={scrollProgressRef}
+          scrollVelocityRef={scrollVelocityRef}
+          reducedMotion={prefersReducedMotion}
+          performanceTier={performanceTier}
+        />
       </Suspense>
 
-      {/* ── HERO SECTION ──────────────────────────────────── */}
+      {/* ── HERO SECTION ──────────────────────────────────────── */}
       <section
         className="hero-section"
         style={{
@@ -269,236 +447,298 @@ export function Landing() {
           justifyContent: 'center',
           position: 'relative',
           zIndex: 10,
-          padding: '80px 24px 120px',
+          padding: '80px 24px 140px',
         }}
       >
-        <div className="hero-content" style={{ textAlign: 'center', maxWidth: 800, width: '100%' }}>
+        <div
+          className="hero-content"
+          style={{ textAlign: 'center', maxWidth: 780, width: '100%' }}
+        >
 
-          {/* Logo */}
-          <div className="hero-logo" style={{ marginBottom: 36 }}>
-            <div className="hero-logo-inner" style={{ display: 'inline-block' }}>
-              <ReviewBandLogo size={88} variant="mark" />
-            </div>
-          </div>
-
-          {/* Badge */}
+          {/* Eyebrow badge */}
           <div
             className="hero-badge"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               padding: '6px 18px', borderRadius: 999,
-              background: 'rgba(124,58,237,0.1)',
-              border: '1px solid rgba(196,181,253,0.4)',
-              color: '#7C3AED', fontSize: 12.5, fontWeight: 700,
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              marginBottom: 28,
-              backdropFilter: 'blur(12px)',
+              background: 'rgba(124,58,237,0.08)',
+              border: '1px solid rgba(196,181,253,0.35)',
+              color: '#7C3AED', fontSize: 11.5, fontWeight: 700,
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+              marginBottom: 36,
+              backdropFilter: 'blur(16px)',
             }}
           >
-            <Sparkles size={13} />
+            <Sparkles size={12} />
             <span>AI-Powered Review Intelligence · V2</span>
           </div>
 
-          {/* Headline */}
-          <h1 className="hero-headline" style={{
-            fontSize: 'clamp(2.8rem, 7vw, 5.5rem)',
-            fontWeight: 900,
-            letterSpacing: '-0.045em',
-            lineHeight: 1.05,
-            marginBottom: 28,
-          }}>
-            <span className="line" style={{ display: 'block', color: '#1C1033' }}>Understand</span>
+          {/* Headline — deliberate hierarchy */}
+          <h1
+            className="hero-headline"
+            style={{
+              letterSpacing: '-0.048em',
+              lineHeight: 1.03,
+              marginBottom: 30,
+            }}
+          >
+            {/* Line 1: deep navy */}
             <span
               className="line"
               style={{
                 display: 'block',
-                background: 'linear-gradient(135deg, #7C3AED 0%, #EC4899 60%, #A855F7 100%)',
+                fontSize: 'clamp(3rem, 7.5vw, 6rem)',
+                fontWeight: 900,
+                color: '#1C1033',
+              }}
+            >
+              Understand
+            </span>
+            {/* Line 2: violet → magenta gradient */}
+            <span
+              className="line"
+              style={{
+                display: 'block',
+                fontSize: 'clamp(3rem, 7.5vw, 6rem)',
+                fontWeight: 900,
+                background: 'linear-gradient(135deg, #7C3AED 10%, #C026D3 60%, #EC4899 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
               }}
-            >Every Customer.</span>
-            <span className="line" style={{ display: 'block', color: '#1C1033' }}>Instantly.</span>
+            >
+              Every Customer.
+            </span>
+            {/* Line 3: deep navy */}
+            <span
+              className="line"
+              style={{
+                display: 'block',
+                fontSize: 'clamp(3rem, 7.5vw, 6rem)',
+                fontWeight: 900,
+                color: '#1C1033',
+              }}
+            >
+              Instantly.
+            </span>
           </h1>
 
           {/* Subtitle */}
           <p
             className="hero-sub"
             style={{
-              fontSize: 'clamp(1rem, 2.2vw, 1.3rem)',
+              fontSize: 'clamp(1rem, 2vw, 1.2rem)',
               color: '#4B4466',
-              maxWidth: 520,
-              margin: '0 auto 52px',
-              lineHeight: 1.65,
+              maxWidth: 500,
+              margin: '0 auto 56px',
+              lineHeight: 1.7,
+              fontWeight: 400,
             }}
           >
-            Transform millions of reviews into competitive intelligence. Real-time sentiment, predictive trends, and AI-driven insights — in one cinematic dashboard.
+            Trace customer feedback from individual reviews to sentiment, topics, and complaint signals in one interactive dashboard.
           </p>
 
           {/* CTAs */}
-          <div className="hero-cta" style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div className="hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {/* Primary */}
             <button
               id="landing-enter-btn"
               onClick={handleEnter}
               style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '17px 36px', borderRadius: 999,
-                background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
-                color: '#fff', fontSize: 16, fontWeight: 700,
+                display: 'flex', alignItems: 'center', gap: 11,
+                padding: '16px 34px', borderRadius: 999,
+                background: 'linear-gradient(135deg, #6D28D9 0%, #7C3AED 50%, #A855F7 100%)',
+                color: '#fff', fontSize: 15.5, fontWeight: 700,
                 border: 'none', cursor: 'pointer',
-                boxShadow: '0 10px 32px rgba(124,58,237,0.38), inset 0 1px 0 rgba(255,255,255,0.15)',
-                transition: 'all 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+                boxShadow: '0 10px 36px rgba(124,58,237,0.40), 0 0 0 1px rgba(255,255,255,0.12) inset',
+                transition: 'all 0.35s cubic-bezier(0.22,1,0.36,1)',
                 letterSpacing: '-0.01em',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)'
-                e.currentTarget.style.boxShadow = '0 16px 48px rgba(124,58,237,0.48), inset 0 1px 0 rgba(255,255,255,0.15)'
+                e.currentTarget.style.transform = 'translateY(-3px)'
+                e.currentTarget.style.boxShadow = '0 18px 52px rgba(124,58,237,0.50), 0 0 0 1px rgba(255,255,255,0.15) inset'
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.transform = 'none'
-                e.currentTarget.style.boxShadow = '0 10px 32px rgba(124,58,237,0.38), inset 0 1px 0 rgba(255,255,255,0.15)'
+                e.currentTarget.style.boxShadow = '0 10px 36px rgba(124,58,237,0.40), 0 0 0 1px rgba(255,255,255,0.12) inset'
               }}
             >
-              Enter Workspace <ArrowRight size={19} />
+              Enter Workspace
+              <ArrowRight
+                size={17}
+                style={{ transition: 'transform 0.25s ease' }}
+                className="btn-arrow"
+              />
             </button>
 
+            {/* Secondary */}
             <button
               id="landing-demo-btn"
+              onClick={() => document.getElementById('customer-voices')?.scrollIntoView({
+                behavior: prefersReducedMotion ? 'auto' : 'smooth',
+              })}
               style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '17px 32px', borderRadius: 999,
-                background: 'rgba(255,255,255,0.55)',
+                display: 'flex', alignItems: 'center', gap: 9,
+                padding: '16px 30px', borderRadius: 999,
+                background: 'rgba(255,255,255,0.50)',
                 backdropFilter: 'blur(20px)',
-                color: '#7C3AED', fontSize: 16, fontWeight: 600,
-                border: '1.5px solid rgba(196,181,253,0.5)',
+                color: '#5B21B6', fontSize: 15.5, fontWeight: 600,
+                border: '1.5px solid rgba(196,181,253,0.45)',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.8)'
+                e.currentTarget.style.background = 'rgba(255,255,255,0.78)'
                 e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.borderColor = 'rgba(196,181,253,0.7)'
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.55)'
+                e.currentTarget.style.background = 'rgba(255,255,255,0.50)'
                 e.currentTarget.style.transform = 'none'
+                e.currentTarget.style.borderColor = 'rgba(196,181,253,0.45)'
               }}
             >
-              <Sparkles size={17} /> Watch Demo
+              <Sparkles size={16} /> Watch Demo
             </button>
           </div>
         </div>
 
-        {/* Scroll hint */}
+        {/* Scroll indicator */}
         <div
           className="scroll-hint"
           style={{
-            position: 'absolute', bottom: 36,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-            color: '#9B8CC4', fontSize: 12, fontWeight: 500, letterSpacing: '0.06em',
-            animation: 'bounce-hint 2s ease-in-out infinite',
+            position: 'absolute', bottom: 38,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
+            color: '#9B8CC4', fontSize: 10.5, fontWeight: 600, letterSpacing: '0.12em',
+            userSelect: 'none',
           }}
         >
           <span>SCROLL TO EXPLORE</span>
-          <ChevronDown size={16} style={{ opacity: 0.7 }} />
+          <ChevronDown
+            size={15}
+            style={{ opacity: 0.65, animation: 'scrollHintBounce 2.4s ease-in-out infinite' }}
+          />
         </div>
       </section>
 
-      {/* ── FEATURES SECTION ──────────────────────────────── */}
+      {/* ── CAPABILITIES SECTION ─────────────────────────────── */}
       <section
         style={{
           position: 'relative', zIndex: 10,
-          padding: 'clamp(80px, 10vw, 140px) clamp(20px, 6vw, 80px)',
+          padding: 'clamp(80px, 10vw, 140px) clamp(20px, 5vw, 72px)',
           maxWidth: 1200, margin: '0 auto',
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: 72 }}>
-          <p className="reveal-heading" style={{
-            fontSize: 13, fontWeight: 700, letterSpacing: '0.12em',
-            color: '#7C3AED', textTransform: 'uppercase', marginBottom: 16,
-          }}>
+        {/* Section header */}
+        <div style={{ textAlign: 'center', marginBottom: 80 }}>
+          <p
+            className="reveal-heading"
+            style={{
+              fontSize: 11.5, fontWeight: 700, letterSpacing: '0.14em',
+              color: '#7C3AED', textTransform: 'uppercase', marginBottom: 14,
+            }}
+          >
             Capabilities
           </p>
-          <h2 className="reveal-heading" style={{
-            fontSize: 'clamp(2rem, 4.5vw, 3.5rem)',
-            fontWeight: 800, letterSpacing: '-0.035em',
-            color: '#1C1033', lineHeight: 1.15, marginBottom: 20,
-          }}>
+          <h2
+            className="reveal-heading"
+            style={{
+              fontSize: 'clamp(2rem, 4.5vw, 3.4rem)',
+              fontWeight: 800, letterSpacing: '-0.038em',
+              color: '#1C1033', lineHeight: 1.12, marginBottom: 18,
+            }}
+          >
             Intelligence at every layer
           </h2>
-          <p className="reveal-heading" style={{
-            fontSize: 'clamp(1rem, 1.8vw, 1.15rem)',
-            color: '#4B4466', maxWidth: 520, margin: '0 auto', lineHeight: 1.6,
-          }}>
-            From raw text to boardroom insights — ReviewBand powers the full pipeline.
+          <p
+            className="reveal-heading"
+            style={{
+              fontSize: 'clamp(1rem, 1.8vw, 1.12rem)',
+              color: '#4B4466', maxWidth: 500, margin: '0 auto', lineHeight: 1.65,
+            }}
+          >
+            From raw text to boardroom insights — ReviewBand powers the full intelligence pipeline.
           </p>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: 24,
-        }}>
-          {features.map((f, i) => (
-            <FeatureCard key={f.title} {...f} delay={i * 0.08} />
+        {/* Feature cards — 3-column grid with intentional vertical offsets */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: 22,
+            alignItems: 'start',
+          }}
+        >
+          {features.map((f) => (
+            <FeatureCard key={f.title} {...f} />
           ))}
         </div>
       </section>
 
-      {/* ── STATS SECTION ─────────────────────────────────── */}
-      <section style={{
+      {/* ── STATS SECTION ────────────────────────────────────── */}
+      <section id="customer-voices" style={{
         position: 'relative', zIndex: 10,
-        padding: 'clamp(60px, 8vw, 110px) clamp(20px, 6vw, 80px)',
+        padding: 'clamp(60px, 8vw, 110px) clamp(20px, 5vw, 72px)',
       }}>
         <div style={{
-          maxWidth: 1100, margin: '0 auto',
-          background: 'rgba(255,255,255,0.38)',
-          backdropFilter: 'blur(28px) saturate(130%)',
-          WebkitBackdropFilter: 'blur(28px) saturate(130%)',
+          maxWidth: 1060, margin: '0 auto',
+          background: 'rgba(255,255,255,0.36)',
+          backdropFilter: 'blur(32px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(32px) saturate(140%)',
           borderRadius: 32,
-          border: '1px solid rgba(255,255,255,0.7)',
-          boxShadow: '0 16px 60px rgba(124,58,237,0.1)',
+          border: '1px solid rgba(255,255,255,0.68)',
+          boxShadow: '0 20px 70px rgba(124,58,237,0.10), 0 1px 0 rgba(255,255,255,0.6) inset',
           padding: 'clamp(40px, 6vw, 80px) clamp(28px, 5vw, 60px)',
         }}>
           <div className="divider-line" style={{
             height: 1,
-            background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.3), transparent)',
+            background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.25), transparent)',
             marginBottom: 56,
             transformOrigin: 'left center',
           }} />
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-            gap: 48,
+            gap: 44,
           }}>
-            <StatItem value="12M+" label="Reviews Analyzed" />
-            <StatItem value="98.2%" label="Sentiment Accuracy" />
-            <StatItem value="< 200ms" label="Processing Speed" />
-            <StatItem value="4,800+" label="Brands Powered" />
+            <StatItem value={BASELINE_TOTAL_REVIEWS.toLocaleString()} label="Sample Reviews" />
+            <StatItem value={`${BASELINE_AVERAGE_RATING.toFixed(2)} / 5`} label="Average Rating" />
+            <StatItem value={`${BASELINE_SENTIMENT.positive}%`} label="Positive Sentiment" />
+            <StatItem value={BASELINE_ACTIVE_COMPLAINTS.toLocaleString()} label="Active Complaints" />
           </div>
         </div>
       </section>
 
-      {/* ── TESTIMONIALS SECTION ──────────────────────────── */}
+      {/* ── TESTIMONIALS SECTION ──────────────────────────────── */}
       <section style={{
         position: 'relative', zIndex: 10,
-        padding: 'clamp(60px, 8vw, 110px) clamp(20px, 6vw, 80px)',
+        padding: 'clamp(60px, 8vw, 110px) clamp(20px, 5vw, 72px)',
         maxWidth: 1200, margin: '0 auto',
       }}>
         <div style={{ textAlign: 'center', marginBottom: 64 }}>
-          <h2 className="reveal-heading" style={{
-            fontSize: 'clamp(1.8rem, 4vw, 3rem)',
-            fontWeight: 800, letterSpacing: '-0.03em', color: '#1C1033', marginBottom: 12,
-          }}>
-            Loved by teams worldwide
+          <h2
+            className="reveal-heading"
+            style={{
+              fontSize: 'clamp(1.8rem, 3.8vw, 2.9rem)',
+              fontWeight: 800, letterSpacing: '-0.03em',
+              color: '#1C1033', marginBottom: 12,
+            }}
+          >
+            Customer voices
           </h2>
-          <p className="reveal-heading" style={{ fontSize: 15.5, color: '#6B5F8A', lineHeight: 1.6 }}>
-            Join thousands of brands making smarter decisions.
+          <p
+            className="reveal-heading"
+            style={{ fontSize: 15, color: '#6B5F8A', lineHeight: 1.6, fontWeight: 400 }}
+          >
+            Illustrative customer feedback from the ReviewBand sample dataset.
           </p>
         </div>
+
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: 24,
+          gap: 22,
         }}>
           {reviews.map((r) => (
             <div
@@ -507,33 +747,49 @@ export function Landing() {
               style={{
                 padding: '28px 26px',
                 borderRadius: 22,
-                background: 'rgba(255,255,255,0.5)',
-                backdropFilter: 'blur(24px) saturate(140%)',
-                WebkitBackdropFilter: 'blur(24px) saturate(140%)',
-                border: '1px solid rgba(255,255,255,0.8)',
-                boxShadow: '0 6px 28px rgba(124,58,237,0.07)',
+                background: 'rgba(255,255,255,0.44)',
+                backdropFilter: 'blur(28px) saturate(145%)',
+                WebkitBackdropFilter: 'blur(28px) saturate(145%)',
+                border: '1px solid rgba(255,255,255,0.75)',
+                boxShadow: '0 6px 32px rgba(124,58,237,0.08), 0 1px 4px rgba(0,0,0,0.03)',
+                transition: 'transform 0.4s cubic-bezier(0.22,1,0.36,1), box-shadow 0.4s ease',
+                opacity: 0,
+                filter: 'blur(5px)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-4px)'
+                e.currentTarget.style.boxShadow = '0 16px 52px rgba(124,58,237,0.14)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'none'
+                e.currentTarget.style.boxShadow = '0 6px 32px rgba(124,58,237,0.08)'
               }}
             >
-              <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+              {/* Stars */}
+              <div style={{ display: 'flex', gap: 3, marginBottom: 16 }}>
                 {Array.from({ length: r.stars }).map((_, si) => (
-                  <Star key={si} size={15} fill="#F59E0B" color="#F59E0B" />
+                  <Star key={si} size={14} fill="#F59E0B" color="#F59E0B" />
                 ))}
               </div>
-              <p style={{ fontSize: 15, color: '#2D1F4A', lineHeight: 1.65, marginBottom: 20, fontStyle: 'italic' }}>
+              <p style={{
+                fontSize: 14.5, color: '#2D1F4A', lineHeight: 1.68,
+                marginBottom: 22, fontStyle: 'italic',
+              }}>
                 "{r.text}"
               </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                 <div style={{
-                  width: 38, height: 38, borderRadius: '50%',
-                  background: `linear-gradient(135deg, #7C3AED, #EC4899)`,
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #7C3AED, #EC4899)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontWeight: 700, fontSize: 14,
+                  color: '#fff', fontWeight: 700, fontSize: 13,
+                  flexShrink: 0,
                 }}>
                   {r.author[0]}
                 </div>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1C1033' }}>{r.author}</div>
-                  <div style={{ fontSize: 12.5, color: '#6B5F8A' }}>{r.role}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1C1033' }}>{r.author}</div>
+                  <div style={{ fontSize: 12, color: '#6B5F8A', marginTop: 1 }}>{r.role}</div>
                 </div>
               </div>
             </div>
@@ -541,78 +797,104 @@ export function Landing() {
         </div>
       </section>
 
-      {/* ── CTA SECTION ───────────────────────────────────── */}
+      {/* ── FINAL CTA SECTION ─────────────────────────────────── */}
       <section style={{
         position: 'relative', zIndex: 10,
-        padding: 'clamp(60px, 8vw, 110px) clamp(20px, 6vw, 80px) clamp(100px, 12vw, 160px)',
+        padding: 'clamp(60px, 8vw, 110px) clamp(20px, 5vw, 72px) clamp(100px, 14vw, 180px)',
       }}>
         <div
           className="cta-section"
           style={{
-            maxWidth: 820, margin: '0 auto', textAlign: 'center',
-            padding: 'clamp(48px, 7vw, 96px) clamp(32px, 5vw, 72px)',
+            maxWidth: 800, margin: '0 auto', textAlign: 'center',
+            padding: 'clamp(52px, 7vw, 100px) clamp(32px, 5vw, 72px)',
             borderRadius: 36,
-            background: 'linear-gradient(135deg, rgba(124,58,237,0.14) 0%, rgba(236,72,153,0.08) 100%)',
-            backdropFilter: 'blur(32px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(32px) saturate(140%)',
-            border: '1px solid rgba(196,181,253,0.4)',
-            boxShadow: '0 24px 80px rgba(124,58,237,0.15)',
+            background: 'linear-gradient(145deg, rgba(124,58,237,0.12) 0%, rgba(168,85,247,0.08) 50%, rgba(236,72,153,0.07) 100%)',
+            backdropFilter: 'blur(36px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(36px) saturate(150%)',
+            border: '1px solid rgba(196,181,253,0.38)',
+            boxShadow: '0 28px 90px rgba(124,58,237,0.16), 0 1px 0 rgba(255,255,255,0.5) inset',
+            opacity: 0, // GSAP reveals
           }}
         >
+          {/* Badge */}
           <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '5px 16px', borderRadius: 999,
-            background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(196,181,253,0.35)',
-            color: '#7C3AED', fontSize: 12, fontWeight: 700,
-            letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 28,
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            padding: '5px 15px', borderRadius: 999,
+            background: 'rgba(124,58,237,0.09)', border: '1px solid rgba(196,181,253,0.32)',
+            color: '#7C3AED', fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 28,
           }}>
-            <Zap size={12} /> Ready to transform your feedback?
+            <Zap size={11} /> Ready to transform your feedback?
           </div>
+
           <h2 style={{
-            fontSize: 'clamp(2rem, 5vw, 3.8rem)',
-            fontWeight: 900, letterSpacing: '-0.04em', color: '#1C1033',
-            lineHeight: 1.1, marginBottom: 20,
+            fontSize: 'clamp(2rem, 5vw, 3.7rem)',
+            fontWeight: 900, letterSpacing: '-0.042em',
+            color: '#1C1033', lineHeight: 1.08, marginBottom: 20,
           }}>
             Start your intelligence<br />
             <span style={{
-              background: 'linear-gradient(135deg, #7C3AED, #EC4899)',
+              background: 'linear-gradient(135deg, #7C3AED 20%, #C026D3 60%, #EC4899 100%)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             }}>journey today.</span>
           </h2>
-          <p style={{ fontSize: 16, color: '#4B4466', lineHeight: 1.6, marginBottom: 44, maxWidth: 420, margin: '0 auto 44px' }}>
-            Join 4,800+ brands using ReviewBand to turn customer feedback into their biggest competitive advantage.
+
+          <p style={{
+            fontSize: 15.5, color: '#4B4466', lineHeight: 1.65,
+            marginBottom: 44, maxWidth: 400, margin: '0 auto 44px',
+          }}>
+            Move from customer voices to clear signals, useful insights, and informed action.
           </p>
+
           <button
             id="landing-cta-btn"
             onClick={handleEnter}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 14,
-              padding: '19px 44px', borderRadius: 999,
-              background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
-              color: '#fff', fontSize: 17, fontWeight: 700,
+              display: 'inline-flex', alignItems: 'center', gap: 13,
+              padding: '18px 42px', borderRadius: 999,
+              background: 'linear-gradient(135deg, #6D28D9, #7C3AED, #A855F7)',
+              color: '#fff', fontSize: 16.5, fontWeight: 700,
               border: 'none', cursor: 'pointer',
-              boxShadow: '0 12px 40px rgba(124,58,237,0.42), inset 0 1px 0 rgba(255,255,255,0.15)',
-              transition: 'all 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+              boxShadow: '0 14px 44px rgba(124,58,237,0.44), 0 0 0 1px rgba(255,255,255,0.12) inset',
+              transition: 'all 0.35s cubic-bezier(0.22,1,0.36,1)',
               letterSpacing: '-0.015em',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-4px) scale(1.03)'
-              e.currentTarget.style.boxShadow = '0 20px 56px rgba(124,58,237,0.52), inset 0 1px 0 rgba(255,255,255,0.15)'
+              e.currentTarget.style.transform = 'translateY(-4px)'
+              e.currentTarget.style.boxShadow = '0 22px 60px rgba(124,58,237,0.55), 0 0 0 1px rgba(255,255,255,0.15) inset'
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = 'none'
-              e.currentTarget.style.boxShadow = '0 12px 40px rgba(124,58,237,0.42), inset 0 1px 0 rgba(255,255,255,0.15)'
+              e.currentTarget.style.boxShadow = '0 14px 44px rgba(124,58,237,0.44), 0 0 0 1px rgba(255,255,255,0.12) inset'
             }}
           >
-            Enter Workspace <ArrowRight size={20} />
+            Enter Workspace <ArrowRight size={19} />
           </button>
         </div>
       </section>
 
       <style>{`
-        @keyframes bounce-hint {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(8px); }
+        @keyframes scrollHintBounce {
+          0%, 100% { transform: translateY(0); opacity: 0.65; }
+          50%       { transform: translateY(7px); opacity: 0.45; }
+        }
+        #landing-enter-btn:hover .btn-arrow,
+        #landing-cta-btn:hover .btn-arrow {
+          transform: translateX(4px);
+        }
+
+        /* Responsive: mobile — simpler, faster */
+        @media (max-width: 768px) {
+          .feat-card { transform: none !important; }
+          .review-card:hover { transform: none !important; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .feat-card { opacity: 1 !important; filter: none !important; transform: none !important; }
+          .stat-item { opacity: 1 !important; }
+          .review-card { opacity: 1 !important; filter: none !important; }
+          .cta-section { opacity: 1 !important; }
+          @keyframes scrollHintBounce { 0%, 100% { transform: none; } }
         }
       `}</style>
     </div>

@@ -133,9 +133,11 @@ export function TopBar() {
       role="banner"
     >
       {/* Search pill — matches reference exactly */}
-      <div
+      <button
+        type="button"
         className="glass-strong"
         onClick={() => window.dispatchEvent(new Event('open-command-palette'))}
+        aria-label="Open command palette"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -144,12 +146,15 @@ export function TopBar() {
           maxWidth: 340,
           padding: '8px 16px',
           borderRadius: 999, /* Override the 16px radius of glass-strong */
-          cursor: 'pointer'
+          cursor: 'pointer',
+          border: 'none',
+          color: 'inherit',
+          fontFamily: 'inherit',
+          textAlign: 'left',
         }}
       >
         <Search size={14} strokeWidth={1.75} style={{ color: '#8B83A3', flexShrink: 0 }} />
-        <div
-          aria-label="Search reviews"
+        <span
           style={{
             flex: 1,
             border: 'none',
@@ -161,7 +166,7 @@ export function TopBar() {
           }}
         >
           Search reviews, products, topics...
-        </div>
+        </span>
         <kbd
           style={{
             fontSize: 10,
@@ -176,7 +181,7 @@ export function TopBar() {
         >
           ⌘ K
         </kbd>
-      </div>
+      </button>
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />

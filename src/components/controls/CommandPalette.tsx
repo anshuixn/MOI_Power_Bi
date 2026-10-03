@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom'
 
 // Mock Search Data - In a real app, this would come from a service
 const SEARCH_DATA = [
-  { id: 'p-dashboard', type: 'page', title: 'Dashboard', url: '/', icon: BarChart2 },
+  { id: 'p-dashboard', type: 'page', title: 'Dashboard', url: '/dashboard', icon: BarChart2 },
   { id: 'p-reviews', type: 'page', title: 'Reviews Explorer', url: '/reviews', icon: MessageSquare },
   { id: 'p-topics', type: 'page', title: 'Topic Intelligence', url: '/topics', icon: FileText },
   { id: 'p-complaints', type: 'page', title: 'Complaints', url: '/complaints', icon: AlertTriangle },
@@ -110,6 +110,7 @@ export function CommandPalette() {
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
+        aria-label="Search pages, products, and topics"
       >
         <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
           <Search size={20} color="#6B7280" />
@@ -117,6 +118,7 @@ export function CommandPalette() {
             ref={inputRef}
             type="text"
             placeholder="Search reviews, topics, insights..."
+            aria-label="Search pages, products, and topics"
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -137,7 +139,7 @@ export function CommandPalette() {
           </div>
         </div>
 
-        <div style={{ maxHeight: 340, overflowY: 'auto', padding: 8 }}>
+        <div role="listbox" aria-label="Search results" style={{ maxHeight: 340, overflowY: 'auto', padding: 8 }}>
           {results.length > 0 ? (
             results.map((item, index) => {
               const Icon = item.icon
@@ -145,9 +147,19 @@ export function CommandPalette() {
               return (
                 <div
                   key={item.id}
+                  role="option"
+                  aria-selected={isSelected}
+                  tabIndex={0}
                   onClick={() => {
                     navigate(item.url)
                     setIsOpen(false)
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      navigate(item.url)
+                      setIsOpen(false)
+                    }
                   }}
                   onMouseEnter={() => setSelectedIndex(index)}
                   style={{

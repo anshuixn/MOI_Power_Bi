@@ -158,6 +158,29 @@ export const COMPLAINTS: Complaint[] = [
 ]
 // Total: 96+67+58+47+41+33 = 342 ✓
 
+// ── Rating Distribution ───────────────────────────────────────
+export const RATING_DISTRIBUTION: Record<1 | 2 | 3 | 4 | 5, number> = {
+  1: 1000,
+  2: 5220,
+  3: 21440,
+  4: 38920,
+  5: 61850,
+}
+
+export const BASELINE_TOTAL_REVIEWS = Object.values(RATING_DISTRIBUTION)
+  .reduce((sum, count) => sum + count, 0)
+
+export const BASELINE_AVERAGE_RATING = Number(
+  (
+    Object.entries(RATING_DISTRIBUTION)
+      .reduce((sum, [rating, count]) => sum + Number(rating) * count, 0) /
+    BASELINE_TOTAL_REVIEWS
+  ).toFixed(2)
+)
+
+export const BASELINE_ACTIVE_COMPLAINTS = COMPLAINTS
+  .reduce((sum, complaint) => sum + complaint.activeCount, 0)
+
 // ── Reviews ───────────────────────────────────────────────────
 export const REVIEWS: Review[] = [
   {
@@ -497,14 +520,25 @@ export const SENTIMENT_TREND: SentimentDataPoint[] = (() => {
     { p: 62.4, n: 21.1, ng: 16.5 },
     { p: 62.4, n: 21.1, ng: 16.5 },
   ]
+  const rawReviewCounts = base.map((_, i) =>
+    Math.round(4100 + i * 88 + Math.sin(i * 0.7) * 200)
+  )
+  const rawTotal = rawReviewCounts.reduce((sum, count) => sum + count, 0)
+  let assignedReviews = 0
+
   return base.map((d, i) => {
     const date = new Date(2024, 10, i + 1)
+    const reviewCount = i === base.length - 1
+      ? BASELINE_TOTAL_REVIEWS - assignedReviews
+      : Math.round(rawReviewCounts[i] * BASELINE_TOTAL_REVIEWS / rawTotal)
+    assignedReviews += reviewCount
+
     return {
       date: date.toISOString().split('T')[0],
       positive: d.p,
       neutral: d.n,
       negative: d.ng,
-      reviewCount: Math.round(4100 + i * 88 + Math.sin(i * 0.7) * 200),
+      reviewCount,
     }
   })
 })()
@@ -531,15 +565,15 @@ export const MODEL_HEALTH_DATA: ModelHealth = {
   components: [
     { id: 'ingestion', name: 'Ingestion', status: 'online', lastChecked: new Date().toISOString() },
     { id: 'sentiment-model', name: 'Sentiment Model', status: 'online', metric: 'Accuracy', metricValue: 94.3, lastChecked: new Date().toISOString() },
-    { id: 'topic-model', name: 'Topic Model', status: 'online', metric: 'F1', metricValue: 0.921, lastChecked: new Date().toISOString() },
+    { id: 'topic-model', name: 'Topic Model', status: 'online', metric: 'F1', metricValue: 92.1, lastChecked: new Date().toISOString() },
     { id: 'complaint-classifier', name: 'Complaint Classifier', status: 'online', metric: 'Precision', metricValue: 92.8, lastChecked: new Date().toISOString() },
     { id: 'pii-scrubber', name: 'PII Scrubber', status: 'online', lastChecked: new Date().toISOString() },
   ],
   sentimentModel: {
     name: 'Sentiment Model',
-    accuracy: 94.3,
-    precision: 93.8,
-    recall: 94.1,
+    accuracy: 0.943,
+    precision: 0.938,
+    recall: 0.941,
     f1: 0.939,
     macroF1: 0.921,
     latencyAvgMs: 118,
@@ -550,9 +584,9 @@ export const MODEL_HEALTH_DATA: ModelHealth = {
   },
   topicModel: {
     name: 'Topic Model',
-    accuracy: 92.6,
-    precision: 91.9,
-    recall: 92.4,
+    accuracy: 0.926,
+    precision: 0.919,
+    recall: 0.924,
     f1: 0.921,
     macroF1: 0.908,
     latencyAvgMs: 94,
@@ -563,9 +597,9 @@ export const MODEL_HEALTH_DATA: ModelHealth = {
   },
   complaintClassifier: {
     name: 'Complaint Classifier',
-    accuracy: 92.8,
-    precision: 93.2,
-    recall: 91.7,
+    accuracy: 0.928,
+    precision: 0.932,
+    recall: 0.917,
     f1: 0.924,
     macroF1: 0.912,
     latencyAvgMs: 76,
@@ -577,15 +611,11 @@ export const MODEL_HEALTH_DATA: ModelHealth = {
   modelHistory: MODEL_HISTORY,
 }
 
-// ── Rating Distribution ───────────────────────────────────────
-export const RATING_DISTRIBUTION: Record<1 | 2 | 3 | 4 | 5, number> = {
-  1: 4820,
-  2: 9630,
-  3: 21440,
-  4: 38920,
-  5: 53620,
+export const BASELINE_SENTIMENT = {
+  positive: SENTIMENT_TREND.at(-1)?.positive ?? 62.4,
+  neutral: SENTIMENT_TREND.at(-1)?.neutral ?? 21.1,
+  negative: SENTIMENT_TREND.at(-1)?.negative ?? 16.5,
 }
-// Total: 128,430 ✓
 
 // ── Source Breakdown ──────────────────────────────────────────
 export const SOURCE_BREAKDOWN: Record<ReviewSource, number> = {

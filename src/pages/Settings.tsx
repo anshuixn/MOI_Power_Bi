@@ -14,10 +14,11 @@ function SettingRow({ label, hint, children }: { label: string; hint?: string; c
   )
 }
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       role="switch"
+      aria-label={label}
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       style={{
@@ -63,6 +64,7 @@ export function Settings() {
 
           <SettingRow label="Performance Tier" hint="Changes apply immediately to the 3D environment.">
             <select
+              aria-label="Performance Tier"
               value={settings.performanceTier}
               onChange={e => updateSettings({ performanceTier: e.target.value as typeof settings.performanceTier })}
               style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(196,181,253,0.3)', background: 'rgba(255,255,255,0.6)', fontSize: 13, color: '#1C1033', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
@@ -75,7 +77,7 @@ export function Settings() {
           </SettingRow>
 
           <SettingRow label="Reduce Motion" hint="Disables animations and cursor physics.">
-            <Toggle checked={settings.reducedMotion} onChange={v => updateSettings({ reducedMotion: v })} />
+            <Toggle label="Reduce Motion" checked={settings.reducedMotion} onChange={v => updateSettings({ reducedMotion: v })} />
           </SettingRow>
         </div>
 
@@ -88,7 +90,7 @@ export function Settings() {
           <p style={{ fontSize: 13, color: '#8B83A3', marginBottom: 16 }}>Control how ReviewBand refreshes and processes data.</p>
 
           <SettingRow label="Auto-refresh" hint="Automatically re-fetch data in the background.">
-            <Toggle checked={settings.autoRefresh} onChange={v => updateSettings({ autoRefresh: v })} />
+            <Toggle label="Auto-refresh" checked={settings.autoRefresh} onChange={v => updateSettings({ autoRefresh: v })} />
           </SettingRow>
 
           <SettingRow label="Refresh Interval" hint="How often data is refreshed automatically.">
@@ -131,6 +133,7 @@ export function Settings() {
           ].map(({ key, label, hint }) => (
             <SettingRow key={key} label={label} hint={hint}>
               <Toggle
+                label={label}
                 checked={notifs[key as keyof typeof notifs]}
                 onChange={v => setNotifs(prev => ({ ...prev, [key]: v }))}
               />
