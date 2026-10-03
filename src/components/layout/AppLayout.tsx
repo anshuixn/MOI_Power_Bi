@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useApp } from '@/hooks/useApp'
 import { useLocation } from 'react-router-dom'
 import { Sidebar } from '../navigation/Sidebar'
 import { TopBar } from '../navigation/TopBar'
@@ -19,6 +20,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const { prefersReducedMotion } = useApp()
   const isDesktop = useMediaQuery('(min-width: 1024px)')
   const location = useLocation()
   const isLanding = location.pathname === '/'
@@ -61,7 +63,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           id="main-content"
           role="main"
           key={location.pathname}
-          className="page-enter"
+          className={prefersReducedMotion ? 'page-enter page-enter-static' : 'page-enter'}
           style={{
             flex: 1,
             paddingTop: isLanding ? 0 : (isDesktop ? 64 : 56),

@@ -436,11 +436,6 @@ function Ribbon({ pts, color, offset = 0 }: {
 // ─── FULL SCENE ──────────────────────────────────────────────
 
 function Scene() {
-  const { prefersReducedMotion } = useApp()
-  const mult = prefersReducedMotion ? 0 : 1
-
-  if (mult === 0) return null
-
   return (
     <>
       <fog attach="fog" args={['#FAF8FF', 9, 26]} />
@@ -551,7 +546,7 @@ function Scene() {
 export function Background3D() {
   const { performanceTier, prefersReducedMotion } = useApp()
 
-  if (performanceTier === 'static' || prefersReducedMotion) return null
+  if (performanceTier === 'static') return null
 
   return (
     <div
@@ -562,7 +557,7 @@ export function Background3D() {
         opacity: 0.1,
         // Allow pointer events so 3D objects are interactive;
         // UI components (zIndex: 10+) will naturally capture their own events first.
-        pointerEvents: 'auto',
+        pointerEvents: prefersReducedMotion ? 'none' : 'auto',
       }}
       aria-hidden="true"
     >
@@ -570,6 +565,7 @@ export function Background3D() {
         camera={{ position: [0, 0, 10], fov: 45 }}
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
         dpr={performanceTier === 'lite' ? [0.75, 1] : [1, 1.5]}
+        frameloop={prefersReducedMotion ? 'demand' : 'always'}
         style={{ width: '100%', height: '100%' }}
       >
         <Scene />

@@ -260,35 +260,23 @@ export function Sidebar() {
     }
   }, [isOpen, prefersReducedMotion])
 
-  // Static styling for reduced motion
-  const staticStyles: React.CSSProperties = prefersReducedMotion ? {
-    transform: 'translateX(0)',
-    opacity: 1,
-    boxShadow: `
-      12px 0 40px rgba(124, 58, 237, 0.15),
-      inset -1px 0 2px rgba(255,255,255,0.8)
-    `,
-  } : {}
-
   return (
     <>
       {/* Edge Trigger Zone */}
-      {!prefersReducedMotion && (
-        <div
-          data-testid="sidebar-edge-trigger"
-          onMouseEnter={handleEnter}
-          onMouseLeave={handleLeave}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: 20,
-            height: '100vh',
-            zIndex: 19,
-          }}
-          aria-hidden="true"
-        />
-      )}
+      <div
+        data-testid="sidebar-edge-trigger"
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: 20,
+          height: '100vh',
+          zIndex: 19,
+        }}
+        aria-hidden="true"
+      />
 
       {/* Sidebar Container */}
       <aside
@@ -311,15 +299,21 @@ export function Sidebar() {
           display: 'flex',
           flexDirection: 'column',
           background: 'rgba(255, 255, 255, 0.65)',
-          backdropFilter: prefersReducedMotion ? 'blur(24px) saturate(135%)' : 'blur(8px) saturate(100%)',
-          WebkitBackdropFilter: prefersReducedMotion ? 'blur(24px) saturate(135%)' : 'blur(8px) saturate(100%)',
-          transform: prefersReducedMotion ? 'translateX(0)' : 'translateX(-95%)',
-          opacity: prefersReducedMotion ? 1 : 0.8,
+          backdropFilter: prefersReducedMotion && isOpen ? 'blur(24px) saturate(135%)' : 'blur(8px) saturate(100%)',
+          WebkitBackdropFilter: prefersReducedMotion && isOpen ? 'blur(24px) saturate(135%)' : 'blur(8px) saturate(100%)',
+          transform: prefersReducedMotion
+            ? (isOpen ? 'translateX(0)' : 'translateX(-95%)')
+            : 'translateX(-95%)',
+          opacity: prefersReducedMotion && isOpen ? 1 : 0.8,
+          boxShadow: prefersReducedMotion
+            ? (isOpen
+              ? '12px 0 40px rgba(124, 58, 237, 0.15), 4px 0 16px rgba(168, 85, 247, 0.10), inset -1px 0 2px rgba(255,255,255,0.8), inset 1px 0 2px rgba(255,255,255,0.8)'
+              : '2px 0 8px rgba(0,0,0,0.02)')
+            : undefined,
           borderRight: '1px solid rgba(255, 255, 255, 0.70)',
           zIndex: 20,
           overflowY: 'auto',
           overflowX: 'hidden',
-          ...staticStyles,
         }}
       >
         {/* Light Sweep Highlight (Layer for entrance animation) */}

@@ -132,7 +132,16 @@ export function Dashboard() {
   const isEmpty   = status === 'empty' || (status === 'success' && !data)
 
   useGSAP(() => {
-    if (prefersReducedMotion || isLoading || !data) return
+    if (prefersReducedMotion) {
+      gsap.set('.kpi-card, .main-chart, .secondary-widget', {
+        opacity: 1,
+        x: 0,
+        y: 0,
+        scale: 1,
+      })
+      return
+    }
+    if (isLoading || !data) return
 
     const tl = gsap.timeline()
 

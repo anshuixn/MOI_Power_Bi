@@ -32,6 +32,11 @@ const LandingScene3D = lazy(() =>
   import('@/components/three/LandingScene3D').then(m => ({ default: m.LandingScene3D }))
 )
 
+const CARD_FLOW_PATH =
+  'M 55 128 C 170 88 292 151 423 128 C 557 105 692 111 824 145 C 925 171 954 225 879 256 C 805 287 746 249 761 219 C 777 190 820 203 817 236 C 814 272 763 297 707 287 C 646 277 614 311 570 337 C 522 365 463 339 448 305 C 433 271 471 244 505 264 C 544 287 522 333 483 365 C 442 399 414 434 445 475 C 484 528 572 531 620 487 C 665 445 642 392 594 384 C 545 376 509 420 507 465 C 505 509 494 545 470 577'
+const CARD_FLOW_STAGGER = 0.085
+const CARD_FLOW_VIEWBOX = { width: 1000, height: 700 }
+
 gsap.registerPlugin(ScrollTrigger, useGSAP)
 
 // ── Feature Card — floating, hover-sensitive 3D tilt ─────────
@@ -106,10 +111,6 @@ function FeatureCard({
         boxShadow: '0 8px 36px rgba(124,58,237,0.09), 0 2px 8px rgba(0,0,0,0.04)',
         transition: 'transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.18s ease, border-color 0.18s ease',
         cursor: 'default',
-        // Initial state — GSAP animates opacity/scale/filter on scroll reveal
-        opacity: 0,
-        filter: 'blur(6px)',
-        willChange: 'transform, opacity, filter',
       }}
     >
       {/* Icon */}
@@ -180,6 +181,8 @@ export function Landing() {
   const navigate = useNavigate()
   const { prefersReducedMotion, performanceTier } = useApp()
   const containerRef = useRef<HTMLDivElement>(null)
+  const featureSectionRef = useRef<HTMLElement>(null)
+  const featurePathRef = useRef<SVGPathElement>(null)
   const scrollProgressRef = useRef(0)
   const scrollVelocityRef = useRef(0)
   const isTransitioning = useRef(false)
@@ -225,7 +228,7 @@ export function Landing() {
     if (prefersReducedMotion) {
       // Still reveal content, just no animation
       gsap.set(['.hero-badge', '.hero-headline .line', '.hero-sub', '.hero-cta', '.scroll-hint'], { opacity: 1, y: 0 })
-      gsap.set('.feat-card', { opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 })
+      gsap.set('.feat-card-path', { x: 0, y: 0, opacity: 1, scale: 1 })
       gsap.set('.stat-item', { opacity: 1, y: 0 })
       return
     }
@@ -274,29 +277,66 @@ export function Landing() {
         })
       })
 
-      // ── Feature cards — natural floating emergence ──────────
-      // NOT a simple translateY slide. Cards start blurred, smaller, below — and
-      // gently float into focus, as if the camera is bringing them into frame.
-      gsap.utils.toArray<HTMLElement>('.feat-card').forEach((card, i) => {
-        gsap.fromTo(card,
-          {
-            opacity: 0,
-            y: 42,
-            scale: 0.965,
-            filter: 'blur(7px)',
-          },
-          {
-            scrollTrigger: { trigger: card, start: 'top 88%', toggleActions: 'play none none none' },
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            filter: 'blur(0px)',
-            duration: 1.05,
-            delay: i * 0.12, // subtle stagger: 0, 120ms, 240ms
-            ease: 'power2.out',
+      // ── Feature cards — native-scroll-linked curved flow ───
+      const section = featureSectionRef.current
+      const path = featurePathRef.current
+      const cards = section
+        ? gsap.utils.toArray<HTMLElement>('.feat-card-path', section)
+        : []
+
+      if (section && path && cards.length > 0) {
+        const pathLength = path.getTotalLength()
+        let horizontalScale = 0
+        let verticalScale = 0
+
+        const getPathOffset = (progress: number) => {
+          const point = path.getPointAtLength(pathLength * progress)
+          const endPoint = path.getPointAtLength(pathLength)
+          return {
+            x: (point.x - endPoint.x) * horizontalScale,
+            y: (point.y - endPoint.y) * verticalScale,
           }
-        )
-      })
+        }
+
+        const updateCardFlow = (progress: number) => {
+          cards.forEach((card, index) => {
+            const delay = index * CARD_FLOW_STAGGER
+            const localProgress = gsap.utils.clamp(
+              0,
+              1,
+              (progress - delay) / (1 - delay),
+            )
+            const point = getPathOffset(localProgress)
+
+            gsap.set(card, {
+              x: point.x,
+              y: point.y,
+              opacity: gsap.utils.clamp(0, 1, localProgress * 24),
+              scale: 0.985 + localProgress * 0.015,
+            })
+          })
+        }
+
+        const measureTargets = () => {
+          const sectionRect = section.getBoundingClientRect()
+          horizontalScale = Math.min(sectionRect.width / CARD_FLOW_VIEWBOX.width, 0.32)
+            * (sectionRect.width < 520 ? 0.22 : sectionRect.width < 850 ? 0.48 : 1)
+          verticalScale = Math.min(sectionRect.height / CARD_FLOW_VIEWBOX.height, 0.18)
+        }
+
+        measureTargets()
+        const cardFlowTrigger = ScrollTrigger.create({
+          trigger: section,
+          start: 'top 90%',
+          end: 'bottom 28%',
+          onRefresh: self => {
+            measureTargets()
+            updateCardFlow(self.progress)
+          },
+          onUpdate: self => updateCardFlow(self.progress),
+        })
+        updateCardFlow(cardFlowTrigger.progress)
+      }
 
       // ── Stats reveal ────────────────────────────────────────
       gsap.utils.toArray<HTMLElement>('.stat-item').forEach((el, i) => {
@@ -338,7 +378,7 @@ export function Landing() {
     }, containerRef)
 
     return () => ctx.revert()
-  }, { scope: containerRef })
+  }, { scope: containerRef, dependencies: [prefersReducedMotion], revertOnUpdate: true })
 
   // Cinematic workspace transition
   const handleEnter = () => {
@@ -623,12 +663,24 @@ export function Landing() {
 
       {/* ── CAPABILITIES SECTION ─────────────────────────────── */}
       <section
+        ref={featureSectionRef}
+        data-testid="capabilities-section"
         style={{
           position: 'relative', zIndex: 10,
           padding: 'clamp(80px, 10vw, 140px) clamp(20px, 5vw, 72px)',
           maxWidth: 1200, margin: '0 auto',
         }}
       >
+        <svg
+          aria-hidden="true"
+          focusable="false"
+          viewBox={`0 0 ${CARD_FLOW_VIEWBOX.width} ${CARD_FLOW_VIEWBOX.height}`}
+          preserveAspectRatio="none"
+          style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', pointerEvents: 'none' }}
+        >
+          <path ref={featurePathRef} d={CARD_FLOW_PATH} />
+        </svg>
+
         {/* Section header */}
         <div style={{ textAlign: 'center', marginBottom: 80 }}>
           <p
@@ -671,7 +723,13 @@ export function Landing() {
           }}
         >
           {features.map((f) => (
-            <FeatureCard key={f.title} {...f} />
+            <div
+              key={f.title}
+              className="feat-card-path"
+              style={{ opacity: 0, willChange: 'transform, opacity, filter' }}
+            >
+              <FeatureCard {...f} />
+            </div>
           ))}
         </div>
       </section>

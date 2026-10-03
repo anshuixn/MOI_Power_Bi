@@ -76,14 +76,13 @@ const coreVertexShader = `
 
   void main() {
     vUv = uv;
-    vNormal = normal;
-    vPosition = position;
-    // Organic noise deformation
-    float noise = cnoise(position * 1.2 + uTime * 0.18);
-    // Breathing: very subtle size oscillation
-    float breathe = 1.0 + 0.022 * sin(uTime * 0.7);
-    vec3 displaced = position * breathe + normal * noise * 0.22;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+    vNormal = normalize(mat3(viewMatrix * modelMatrix) * normal);
+    float noise = cnoise(position * 0.8 + uTime * 0.07);
+    float breathe = 1.0 + 0.008 * sin(uTime * 0.45);
+    vec3 displaced = position * breathe + normal * noise * 0.035;
+    vec4 viewPosition = modelViewMatrix * vec4(displaced, 1.0);
+    vPosition = viewPosition.xyz;
+    gl_Position = projectionMatrix * viewPosition;
   }
 `
 
@@ -104,14 +103,14 @@ const coreFragmentShader = `
     vec3 color = mix(colorA, colorB, t);
     color = mix(color, colorC, t2 * 0.45);
 
-    // Fresnel rim glow — gives depth and glass feel
-    vec3 viewDir = normalize(cameraPosition - vPosition);
-    float fresnel = pow(1.0 - max(0.0, dot(viewDir, vNormal)), 2.8);
+    // Keep the view direction and normal in the same coordinate space.
+    vec3 viewDir = normalize(-vPosition);
+    float fresnel = pow(1.0 - max(0.0, dot(viewDir, normalize(vNormal))), 2.8);
     color += fresnel * colorB * 1.1;
 
     // Inner luminosity pulse
     float pulse = 0.92 + 0.08 * sin(uTime * 1.1);
-    float alpha = (0.82 + fresnel * 0.15) * pulse;
+    float alpha = (0.94 + fresnel * 0.06) * pulse;
 
     gl_FragColor = vec4(color, alpha);
   }
@@ -144,19 +143,19 @@ function CoreGlow() {
   )
 }
 
-// ── Main AI Orb (noise-displaced sphere) ─────────────────────
+// ── Main AI Orb (gently deformed, opaque sphere) ─────────────
 function AIOrb() {
   const meshRef = useRef<THREE.Mesh>(null)
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
   }), [])
 
-  useFrame(({ clock }, delta) => {
-    uniforms.uTime.value = clock.getElapsedTime()
+  useFrame(({ clock }) => {
+    const time = clock.getElapsedTime()
+    uniforms.uTime.value = time
     if (meshRef.current) {
-      // Very gentle autonomous rotation
-      meshRef.current.rotation.y += delta * 0.07
-      meshRef.current.rotation.z = Math.sin(clock.getElapsedTime() * 0.055) * 0.1
+      meshRef.current.rotation.y = time * 0.07
+      meshRef.current.rotation.z = Math.sin(time * 0.055) * 0.04
     }
   })
 
@@ -167,7 +166,7 @@ function AIOrb() {
         vertexShader={coreVertexShader}
         fragmentShader={coreFragmentShader}
         uniforms={uniforms}
-        transparent
+        transparent={false}
       />
     </mesh>
   )
@@ -193,11 +192,12 @@ function OrbitalRing({
 }) {
   const groupRef = useRef<THREE.Group>(null)
 
-  useFrame(({ clock }, delta) => {
+  useFrame(({ clock }) => {
+    const time = clock.getElapsedTime()
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * speed
-      groupRef.current.rotation.x = tiltX + Math.sin(clock.getElapsedTime() * 0.06) * 0.04
-      groupRef.current.rotation.z = tiltZ + Math.cos(clock.getElapsedTime() * 0.05) * 0.03
+      groupRef.current.rotation.y = time * speed
+      groupRef.current.rotation.x = tiltX + Math.sin(time * 0.06) * 0.025
+      groupRef.current.rotation.z = tiltZ + Math.cos(time * 0.05) * 0.02
     }
   })
 
@@ -247,9 +247,9 @@ function OrbitalNode({
     if (matRef.current) {
       matRef.current.opacity = 0.55 + 0.35 * Math.sin(t * 1.3 + offset)
     }
-    // Billboard: face camera
+    // Keep the node's subtle spin tied to scene time rather than frame count.
     if (meshRef.current) {
-      meshRef.current.rotation.y += 0.01
+      meshRef.current.rotation.y = t * 0.6
     }
   })
 
@@ -325,10 +325,11 @@ function AmbientParticles({ scrollVelocityRef }: { scrollVelocityRef: React.Muta
     return pos
   }, [])
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }) => {
+    const time = clock.getElapsedTime()
     if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.012
-      meshRef.current.rotation.x += delta * 0.007
+      meshRef.current.rotation.y = time * 0.012
+      meshRef.current.rotation.x = time * 0.007
     }
     if (matRef.current) {
       const vel = Math.abs(scrollVelocityRef.current)
@@ -369,7 +370,7 @@ function CursorLight() {
     const ny = cursor.y * viewport.height * 0.7
     targetPos.current.set(nx, ny, 4)
     if (lightRef.current) {
-      lightRef.current.position.lerp(targetPos.current, delta * 3.5)
+      lightRef.current.position.lerp(targetPos.current, Math.min(delta * 3.5, 1))
     }
   })
 
@@ -408,6 +409,7 @@ function SceneContent({
   const targetScale = useRef(1)
 
   useFrame((_, delta) => {
+    const step = Math.min(delta, 0.05)
     // Update smoothed cursor
     cursor.x = THREE.MathUtils.lerp(cursor.x, cursor.rawX, delta * 4)
     cursor.y = THREE.MathUtils.lerp(cursor.y, cursor.rawY, delta * 4)
@@ -479,21 +481,21 @@ function SceneContent({
     if (groupRef.current) {
       // Keep the art responsive to direct manipulation; long interpolation is
       // perceived as input lag while scrolling or moving the pointer.
-      groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetPos.current.x, 12, delta)
-      groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetPos.current.y, 12, delta)
-      groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetPos.current.z, 12, delta)
-      groupRef.current.scale.setScalar(THREE.MathUtils.damp(groupRef.current.scale.x, targetScale.current, 12, delta))
+      groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetPos.current.x, 12, step)
+      groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetPos.current.y, 12, step)
+      groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetPos.current.z, 12, step)
+      groupRef.current.scale.setScalar(THREE.MathUtils.damp(groupRef.current.scale.x, targetScale.current, 12, step))
 
       // Subtle cursor parallax on the group itself
       groupRef.current.rotation.y = THREE.MathUtils.lerp(
         groupRef.current.rotation.y,
         cursor.x * 0.08,
-        delta * 10
+        step * 10
       )
       groupRef.current.rotation.x = THREE.MathUtils.lerp(
         groupRef.current.rotation.x,
         -cursor.y * 0.06,
-        delta * 10
+        step * 10
       )
     }
   })
@@ -566,16 +568,25 @@ export function LandingScene3D({
       dpr={isMobile || performanceTier === 'lite' ? [1, 1] : [1, 1.25]}
       gl={{ powerPreference: 'high-performance', antialias: false, alpha: true }}
       camera={{ position: [0, 0, 6], fov: 44 }}
-      style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}
+      frameloop={reducedMotion ? 'demand' : 'always'}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        width: '100%',
+        height: '100vh',
+        zIndex: 0,
+        pointerEvents: 'none',
+        background: 'radial-gradient(circle 220px at 50% 48%, rgba(242, 231, 255, 0.58) 0%, rgba(196, 155, 255, 0.34) 24%, rgba(124, 58, 237, 0.18) 52%, rgba(124, 58, 237, 0.04) 76%, transparent 100%), radial-gradient(ellipse at 50% 48%, rgba(124, 58, 237, 0.12), transparent 48%)',
+      }}
     >
       <ambientLight intensity={0.18} />
       <directionalLight position={[3, 5, 4]} intensity={0.35} color="#F5F0FF" />
-      {!reducedMotion && <CursorLight />}
+      <CursorLight />
       <SceneContent
         scrollProgressRef={scrollProgressRef}
         scrollVelocityRef={scrollVelocityRef}
       />
-      {!reducedMotion && !isMobile && performanceTier === 'full' && (
+      {!isMobile && performanceTier === 'full' && (
         <EffectComposer>
           <Bloom
             luminanceThreshold={0.12}
