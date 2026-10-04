@@ -3,11 +3,14 @@
 // ============================================================
 
 import { Suspense, lazy } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppProvider } from '@/hooks/useApp'
+import { AuthProvider, useAuth } from '@/hooks/useAuth'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ToastProvider } from '@/components/feedback/Toast'
 import { RouteMetadata } from '@/components/seo/RouteMetadata'
+import { Login } from '@/pages/Login'
+import { Signup } from '@/pages/Signup'
 
 // Lazy loaded routes for performance (code splitting)
 const Landing = lazy(() => import('@/pages/Landing').then(m => ({ default: m.Landing })))
@@ -27,30 +30,58 @@ const PageLoader = (
   </div>
 )
 
+function AppRouter() {
+  const location = useLocation()
+  const { isAuthenticated, loading, isConfigured } = useAuth()
+
+  if (loading) {
+    return PageLoader
+  }
+
+  const isAuthRoute = ['/login', '/signup'].includes(location.pathname)
+
+  if (isAuthRoute && isAuthenticated) {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  if (!isAuthRoute && !['/'].includes(location.pathname) && (!isConfigured || !isAuthenticated)) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+
+  return (
+    <AppLayout>
+      <Suspense fallback={PageLoader}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/reviews" element={<ReviewsExplorer />} />
+          <Route path="/analytics" element={<AnalyticsWorkspace />} />
+          <Route path="/topics" element={<TopicIntelligence />} />
+          <Route path="/complaints" element={<Complaints />} />
+          <Route path="/ai-insights" element={<AiInsights />} />
+          <Route path="/model-health" element={<ModelHealth />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Suspense>
+    </AppLayout>
+  )
+}
+
 export default function App() {
   return (
     <AppProvider>
-      <ToastProvider>
-        <BrowserRouter>
-          <RouteMetadata />
-          <AppLayout>
-            <Suspense fallback={PageLoader}>
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/reviews" element={<ReviewsExplorer />} />
-                <Route path="/analytics" element={<AnalyticsWorkspace />} />
-                <Route path="/topics" element={<TopicIntelligence />} />
-                <Route path="/complaints" element={<Complaints />} />
-                <Route path="/ai-insights" element={<AiInsights />} />
-                <Route path="/model-health" element={<ModelHealth />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/settings" element={<Settings />} />
-              </Routes>
-            </Suspense>
-          </AppLayout>
-        </BrowserRouter>
-      </ToastProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            <RouteMetadata />
+            <AppRouter />
+          </BrowserRouter>
+        </ToastProvider>
+      </AuthProvider>
     </AppProvider>
   )
 }

@@ -24,26 +24,27 @@ export function AppLayout({ children }: AppLayoutProps) {
   const isDesktop = useMediaQuery('(min-width: 1024px)')
   const location = useLocation()
   const isLanding = location.pathname === '/'
+  const isAuthPage = location.pathname === '/login'
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative' }}>
       {/* Global Interactions */}
-      <CommandPalette />
+      {!isAuthPage && <CommandPalette />}
 
       {/* Layer 2: Botanical illustrations */}
-      {!isLanding && <BackgroundOrganic />}
+      {!isLanding && !isAuthPage && <BackgroundOrganic />}
       
       {/* Layer 3: Floating 3D objects — wrapped to catch WebGL context loss */}
-      {!isLanding && (
-        <ErrorBoundary fallback={<div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(ellipse at 30% 50%, rgba(196,181,253,0.08), transparent)' }} />}>
+      {!isLanding && !isAuthPage && (
+        <ErrorBoundary fallback={<div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(ellipse at 30% 50%, rgba(196,181,253,0.08), transparent)' }} />}> 
           <Background3D />
         </ErrorBoundary>
       )}
 
       {/* Layer 4 & 5: Glass dashboard & Content */}
       <div style={{ display: 'flex', width: '100%', position: 'relative', zIndex: 10 }}>
-        {/* Sidebar — desktop only, except landing */}
-        {isDesktop && !isLanding && <Sidebar />}
+        {/* Sidebar — desktop only, except landing/auth */}
+        {isDesktop && !isLanding && !isAuthPage && <Sidebar />}
 
       {/* Main area */}
       <div
@@ -55,8 +56,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           minHeight: '100vh',
         }}
       >
-        {/* Top bar — desktop only, Mobile Header otherwise, except landing */}
-        {!isLanding && (isDesktop ? <TopBar /> : <MobileHeader />)}
+        {/* Top bar — desktop only, Mobile Header otherwise, except landing/auth */}
+        {!isLanding && !isAuthPage && (isDesktop ? <TopBar /> : <MobileHeader />)}
 
         {/* Content — page transition via key + CSS animation */}
         <main
@@ -66,8 +67,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           className={prefersReducedMotion ? 'page-enter page-enter-static' : 'page-enter'}
           style={{
             flex: 1,
-            paddingTop: isLanding ? 0 : (isDesktop ? 64 : 56),
-            paddingBottom: isLanding ? 0 : (!isDesktop ? 64 : 0),
+            paddingTop: isLanding || isAuthPage ? 0 : (isDesktop ? 64 : 56),
+            paddingBottom: isLanding || isAuthPage ? 0 : (!isDesktop ? 64 : 0),
             background: 'transparent',
           }}
         >
@@ -77,8 +78,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         </main>
       </div>
 
-      {/* Mobile bottom nav, except landing */}
-      {!isDesktop && !isLanding && <MobileNav />}
+      {/* Mobile bottom nav, except landing/auth */}
+      {!isDesktop && !isLanding && !isAuthPage && <MobileNav />}
       </div>
     </div>
   )
