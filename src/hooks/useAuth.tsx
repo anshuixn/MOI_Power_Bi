@@ -76,6 +76,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: 'Authentication is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.' }
     }
 
+    const redirectBase = typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : import.meta.env.PROD
+        ? 'https://moi-power-bi.vercel.app'
+        : 'http://localhost:5173'
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -83,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: {
           full_name: fullName,
         },
+        emailRedirectTo: `${redirectBase}/login`,
       },
     })
 
