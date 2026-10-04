@@ -1,0 +1,157 @@
+table fact_reviews
+	column organization_id
+		dataType: string
+		sourceColumn: organization_id
+		summarizeBy: none
+	column review_id
+		dataType: string
+		isKey
+		sourceColumn: review_id
+		summarizeBy: none
+	column date_key
+		dataType: dateTime
+		sourceColumn: date_key
+		summarizeBy: none
+	column review_date
+		dataType: dateTime
+		sourceColumn: review_date
+		summarizeBy: none
+	column product_id
+		dataType: string
+		sourceColumn: product_id
+		summarizeBy: none
+	column source_id
+		dataType: string
+		sourceColumn: source_id
+		summarizeBy: none
+	column rating
+		dataType: int64
+		sourceColumn: rating
+		summarizeBy: none
+	column sentiment
+		dataType: string
+		sourceColumn: sentiment
+		summarizeBy: none
+	column sentiment_score
+		dataType: decimal
+		sourceColumn: sentiment_score
+		summarizeBy: none
+	column sentiment_confidence
+		dataType: decimal
+		sourceColumn: sentiment_confidence
+		summarizeBy: none
+	column processing_status
+		dataType: string
+		sourceColumn: processing_status
+		summarizeBy: none
+	column analysis_status
+		dataType: string
+		sourceColumn: analysis_status
+		summarizeBy: none
+	column processed_at
+		dataType: dateTime
+		sourceColumn: processed_at
+		summarizeBy: none
+	measure 'Review Count Base' = DISTINCTCOUNT ( fact_reviews[review_id] )
+		formatString: #,0
+	measure 'Average Rating Base' = AVERAGE ( fact_reviews[rating] )
+		formatString: 0.00
+	measure 'Total Reviews' =
+			VAR TopicIsFiltered = ISCROSSFILTERED ( dim_topics[topic_id] )
+			VAR ComplaintIsFiltered = ISCROSSFILTERED ( dim_complaints[complaint_id] )
+			VAR TopicReviewIds = VALUES ( fact_review_topics[review_id] )
+			VAR ComplaintReviewIds = VALUES ( fact_review_complaints[review_id] )
+			RETURN
+				SWITCH (
+					TRUE (),
+					TopicIsFiltered && ComplaintIsFiltered,
+						CALCULATE (
+							[Review Count Base],
+							KEEPFILTERS ( TREATAS ( TopicReviewIds, fact_reviews[review_id] ) ),
+							KEEPFILTERS ( TREATAS ( ComplaintReviewIds, fact_reviews[review_id] ) )
+						),
+					TopicIsFiltered,
+						CALCULATE (
+							[Review Count Base],
+							KEEPFILTERS ( TREATAS ( TopicReviewIds, fact_reviews[review_id] ) )
+						),
+					ComplaintIsFiltered,
+						CALCULATE (
+							[Review Count Base],
+							KEEPFILTERS ( TREATAS ( ComplaintReviewIds, fact_reviews[review_id] ) )
+						),
+					[Review Count Base]
+				)
+		formatString: #,0
+	measure 'Average Rating' =
+			VAR TopicIsFiltered = ISCROSSFILTERED ( dim_topics[topic_id] )
+			VAR ComplaintIsFiltered = ISCROSSFILTERED ( dim_complaints[complaint_id] )
+			VAR TopicReviewIds = VALUES ( fact_review_topics[review_id] )
+			VAR ComplaintReviewIds = VALUES ( fact_review_complaints[review_id] )
+			RETURN
+				SWITCH (
+					TRUE (),
+					TopicIsFiltered && ComplaintIsFiltered,
+						CALCULATE (
+							[Average Rating Base],
+							KEEPFILTERS ( TREATAS ( TopicReviewIds, fact_reviews[review_id] ) ),
+							KEEPFILTERS ( TREATAS ( ComplaintReviewIds, fact_reviews[review_id] ) )
+						),
+					TopicIsFiltered,
+						CALCULATE (
+							[Average Rating Base],
+							KEEPFILTERS ( TREATAS ( TopicReviewIds, fact_reviews[review_id] ) )
+						),
+					ComplaintIsFiltered,
+						CALCULATE (
+							[Average Rating Base],
+							KEEPFILTERS ( TREATAS ( ComplaintReviewIds, fact_reviews[review_id] ) )
+						),
+					[Average Rating Base]
+				)
+		formatString: 0.00
+	measure 'Analyzed Reviews' =
+			CALCULATE (
+				[Total Reviews],
+				REMOVEFILTERS ( dim_sentiments ),
+				dim_sentiments[sentiment] <> "unanalyzed"
+			)
+		formatString: #,0
+	measure 'Positive Reviews' =
+			CALCULATE ( [Total Reviews], REMOVEFILTERS ( dim_sentiments ), dim_sentiments[sentiment] = "positive" )
+		formatString: #,0
+	measure 'Neutral Reviews' =
+			CALCULATE ( [Total Reviews], REMOVEFILTERS ( dim_sentiments ), dim_sentiments[sentiment] = "neutral" )
+		formatString: #,0
+	measure 'Negative Reviews' =
+			CALCULATE ( [Total Reviews], REMOVEFILTERS ( dim_sentiments ), dim_sentiments[sentiment] = "negative" )
+		formatString: #,0
+	measure 'Positive %' = DIVIDE ( [Positive Reviews], [Analyzed Reviews] )
+		formatString: 0.0%
+	measure 'Neutral %' = DIVIDE ( [Neutral Reviews], [Analyzed Reviews] )
+		formatString: 0.0%
+	measure 'Negative %' = DIVIDE ( [Negative Reviews], [Analyzed Reviews] )
+		formatString: 0.0%
+	measure 'Previous Period Reviews' =
+			VAR SelectedDays = COUNTROWS ( VALUES ( dim_dates[date_key] ) )
+			RETURN
+				CALCULATE ( [Total Reviews], DATEADD ( dim_dates[date_key], -SelectedDays, DAY ) )
+		formatString: #,0
+	measure 'Review Growth' =
+			DIVIDE ( [Total Reviews] - [Previous Period Reviews], [Previous Period Reviews] )
+		formatString: 0.0%
+	measure 'Previous Period Positive %' =
+			VAR SelectedDays = COUNTROWS ( VALUES ( dim_dates[date_key] ) )
+			RETURN
+				CALCULATE ( [Positive %], DATEADD ( dim_dates[date_key], -SelectedDays, DAY ) )
+		formatString: 0.0%
+	measure 'Sentiment Change' = [Positive %] - [Previous Period Positive %]
+		formatString: 0.0%
+	partition fact_reviews = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="fact_reviews"]}[Data]
+			in
+				View

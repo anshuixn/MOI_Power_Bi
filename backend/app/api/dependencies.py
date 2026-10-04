@@ -7,11 +7,19 @@ from postgrest.exceptions import APIError
 from supabase_auth.errors import AuthApiError
 
 from app.core.config import settings
-from app.integrations.supabase import OrganizationContext, create_user_client
+from app.integrations.ai_provider import create_insight_provider
+from app.integrations.ai_provider import AIProviderError
+from app.integrations.supabase import (
+    OrganizationContext,
+    create_user_client,
+    create_worker_client,
+)
 from app.repositories.review_insight_repository import ReviewInsightRepository
 from app.repositories.supabase_review_insight_repository import SupabaseReviewInsightRepository
+from app.services.ai_insight_service import AIInsightService
 from app.services.analytics_service import AnalyticsService
 from app.services.catalog_service import CatalogService
+from app.services.model_health_service import ModelHealthService
 from app.services.review_processing_service import ReviewProcessingService
 from app.services.review_service import ReviewService
 
@@ -91,3 +99,34 @@ def get_catalog_service(
     repository: ReviewInsightRepository = Depends(get_repository),
 ) -> CatalogService:
     return CatalogService(repository)
+
+
+def get_ai_insight_service(
+    context: OrganizationContext = Depends(get_organization_context),
+) -> AIInsightService:
+    try:
+        provider = create_insight_provider(settings)
+    except AIProviderError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="AI insight provider is not configured",
+        ) from exc
+    try:
+        insight_writer = create_worker_client(settings)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="AI insight storage is not configured",
+        ) from exc
+    repository = SupabaseReviewInsightRepository(
+        context.client,
+        context.organization_id,
+        insight_write_client=insight_writer,
+    )
+    return AIInsightService(repository, provider)
+
+
+def get_model_health_service(
+    repository: ReviewInsightRepository = Depends(get_repository),
+) -> ModelHealthService:
+    return ModelHealthService(repository)

@@ -1,0 +1,42 @@
+table dim_model_versions
+	column organization_id
+		dataType: string
+		sourceColumn: organization_id
+		summarizeBy: none
+	column model_version_id
+		dataType: string
+		isKey
+		sourceColumn: model_version_id
+		summarizeBy: none
+	column provider
+		dataType: string
+		sourceColumn: provider
+		summarizeBy: none
+	column model_name
+		dataType: string
+		sourceColumn: model_name
+		summarizeBy: none
+	column model_version
+		dataType: string
+		sourceColumn: model_version
+		summarizeBy: none
+	column task
+		dataType: string
+		sourceColumn: task
+		summarizeBy: none
+	column model_status
+		dataType: string
+		sourceColumn: model_status
+		summarizeBy: none
+	column created_at
+		dataType: dateTime
+		sourceColumn: created_at
+		summarizeBy: none
+	partition dim_model_versions = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="dim_model_versions"]}[Data]
+			in
+				View

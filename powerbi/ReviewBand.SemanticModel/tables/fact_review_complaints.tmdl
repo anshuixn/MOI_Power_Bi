@@ -1,0 +1,131 @@
+table fact_review_complaints
+	column organization_id
+		dataType: string
+		sourceColumn: organization_id
+		summarizeBy: none
+	column review_id
+		dataType: string
+		sourceColumn: review_id
+		summarizeBy: none
+	column complaint_id
+		dataType: string
+		sourceColumn: complaint_id
+		summarizeBy: none
+	column date_key
+		dataType: dateTime
+		sourceColumn: date_key
+		summarizeBy: none
+	column product_id
+		dataType: string
+		sourceColumn: product_id
+		summarizeBy: none
+	column source_id
+		dataType: string
+		sourceColumn: source_id
+		summarizeBy: none
+	column rating
+		dataType: int64
+		sourceColumn: rating
+		summarizeBy: none
+	column sentiment
+		dataType: string
+		sourceColumn: sentiment
+		summarizeBy: none
+	column severity
+		dataType: string
+		sourceColumn: severity
+		summarizeBy: none
+	column complaint_status
+		dataType: string
+		sourceColumn: complaint_status
+		summarizeBy: none
+	column complaint_confidence
+		dataType: decimal
+		sourceColumn: complaint_confidence
+		summarizeBy: none
+	measure 'Complaint Mentions' =
+			VAR TopicIsFiltered = ISCROSSFILTERED ( dim_topics[topic_id] )
+			VAR TopicReviewIds = VALUES ( fact_review_topics[review_id] )
+			RETURN
+				IF (
+					TopicIsFiltered,
+					CALCULATE (
+						COUNTROWS ( fact_review_complaints ),
+						KEEPFILTERS (
+							TREATAS ( TopicReviewIds, fact_review_complaints[review_id] )
+						)
+					),
+					COUNTROWS ( fact_review_complaints )
+				)
+		formatString: #,0
+	measure 'Complaint Reviews' =
+			VAR TopicIsFiltered = ISCROSSFILTERED ( dim_topics[topic_id] )
+			VAR TopicReviewIds = VALUES ( fact_review_topics[review_id] )
+			RETURN
+				IF (
+					TopicIsFiltered,
+					CALCULATE (
+						DISTINCTCOUNT ( fact_review_complaints[review_id] ),
+						KEEPFILTERS (
+							TREATAS ( TopicReviewIds, fact_review_complaints[review_id] )
+						)
+					),
+					DISTINCTCOUNT ( fact_review_complaints[review_id] )
+				)
+		formatString: #,0
+	measure 'Complaint Count' =
+			VAR TopicIsFiltered = ISCROSSFILTERED ( dim_topics[topic_id] )
+			VAR TopicReviewIds = VALUES ( fact_review_topics[review_id] )
+			RETURN
+				IF (
+					TopicIsFiltered,
+					CALCULATE (
+						DISTINCTCOUNT ( fact_review_complaints[complaint_id] ),
+						KEEPFILTERS (
+							TREATAS ( TopicReviewIds, fact_review_complaints[review_id] )
+						)
+					),
+					DISTINCTCOUNT ( fact_review_complaints[complaint_id] )
+				)
+		formatString: #,0
+	measure 'Active Complaints' =
+			VAR TopicIsFiltered = ISCROSSFILTERED ( dim_topics[topic_id] )
+			VAR TopicReviewIds = VALUES ( fact_review_topics[review_id] )
+			RETURN
+				IF (
+					TopicIsFiltered,
+					CALCULATE (
+						DISTINCTCOUNT ( fact_review_complaints[complaint_id] ),
+						dim_complaints[status] <> "resolved",
+						KEEPFILTERS (
+							TREATAS ( TopicReviewIds, fact_review_complaints[review_id] )
+						)
+					),
+					CALCULATE (
+						DISTINCTCOUNT ( fact_review_complaints[complaint_id] ),
+						dim_complaints[status] <> "resolved"
+					)
+				)
+		formatString: #,0
+	measure 'Previous Period Complaint Reviews' =
+			VAR SelectedDays = COUNTROWS ( VALUES ( dim_dates[date_key] ) )
+			RETURN
+				CALCULATE (
+					[Complaint Reviews],
+					DATEADD ( dim_dates[date_key], -SelectedDays, DAY )
+				)
+		formatString: #,0
+	measure 'Complaint Change' =
+			DIVIDE (
+				[Complaint Reviews] - [Previous Period Complaint Reviews],
+				[Previous Period Complaint Reviews]
+			)
+		formatString: 0.0%
+	partition fact_review_complaints = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="fact_review_complaints"]}[Data]
+			in
+				View

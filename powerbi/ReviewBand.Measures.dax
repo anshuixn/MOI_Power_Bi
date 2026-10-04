@@ -1,0 +1,229 @@
+// These measures read stored ReviewBand records. Supporting AI text is never a
+// source for numeric values. Topic/complaint slicers are applied by review ID.
+
+Review Count Base =
+DISTINCTCOUNT ( fact_reviews[review_id] )
+
+Average Rating Base =
+AVERAGE ( fact_reviews[rating] )
+
+Total Reviews =
+VAR TopicIsFiltered = ISCROSSFILTERED ( dim_topics[topic_id] )
+VAR ComplaintIsFiltered = ISCROSSFILTERED ( dim_complaints[complaint_id] )
+VAR TopicReviewIds = VALUES ( fact_review_topics[review_id] )
+VAR ComplaintReviewIds = VALUES ( fact_review_complaints[review_id] )
+RETURN
+    SWITCH (
+        TRUE (),
+        TopicIsFiltered && ComplaintIsFiltered,
+            CALCULATE (
+                [Review Count Base],
+                KEEPFILTERS ( TREATAS ( TopicReviewIds, fact_reviews[review_id] ) ),
+                KEEPFILTERS ( TREATAS ( ComplaintReviewIds, fact_reviews[review_id] ) )
+            ),
+        TopicIsFiltered,
+            CALCULATE (
+                [Review Count Base],
+                KEEPFILTERS ( TREATAS ( TopicReviewIds, fact_reviews[review_id] ) )
+            ),
+        ComplaintIsFiltered,
+            CALCULATE (
+                [Review Count Base],
+                KEEPFILTERS ( TREATAS ( ComplaintReviewIds, fact_reviews[review_id] ) )
+            ),
+        [Review Count Base]
+    )
+
+Average Rating =
+VAR TopicIsFiltered = ISCROSSFILTERED ( dim_topics[topic_id] )
+VAR ComplaintIsFiltered = ISCROSSFILTERED ( dim_complaints[complaint_id] )
+VAR TopicReviewIds = VALUES ( fact_review_topics[review_id] )
+VAR ComplaintReviewIds = VALUES ( fact_review_complaints[review_id] )
+RETURN
+    SWITCH (
+        TRUE (),
+        TopicIsFiltered && ComplaintIsFiltered,
+            CALCULATE (
+                [Average Rating Base],
+                KEEPFILTERS ( TREATAS ( TopicReviewIds, fact_reviews[review_id] ) ),
+                KEEPFILTERS ( TREATAS ( ComplaintReviewIds, fact_reviews[review_id] ) )
+            ),
+        TopicIsFiltered,
+            CALCULATE (
+                [Average Rating Base],
+                KEEPFILTERS ( TREATAS ( TopicReviewIds, fact_reviews[review_id] ) )
+            ),
+        ComplaintIsFiltered,
+            CALCULATE (
+                [Average Rating Base],
+                KEEPFILTERS ( TREATAS ( ComplaintReviewIds, fact_reviews[review_id] ) )
+            ),
+        [Average Rating Base]
+    )
+
+Analyzed Reviews =
+CALCULATE (
+    [Total Reviews],
+    REMOVEFILTERS ( dim_sentiments ),
+    dim_sentiments[sentiment] <> "unanalyzed"
+)
+
+Positive Reviews =
+CALCULATE (
+    [Total Reviews],
+    REMOVEFILTERS ( dim_sentiments ),
+    dim_sentiments[sentiment] = "positive"
+)
+
+Neutral Reviews =
+CALCULATE (
+    [Total Reviews],
+    REMOVEFILTERS ( dim_sentiments ),
+    dim_sentiments[sentiment] = "neutral"
+)
+
+Negative Reviews =
+CALCULATE (
+    [Total Reviews],
+    REMOVEFILTERS ( dim_sentiments ),
+    dim_sentiments[sentiment] = "negative"
+)
+
+Positive % = DIVIDE ( [Positive Reviews], [Analyzed Reviews] )
+Neutral % = DIVIDE ( [Neutral Reviews], [Analyzed Reviews] )
+Negative % = DIVIDE ( [Negative Reviews], [Analyzed Reviews] )
+
+Topic Mentions = COUNTROWS ( fact_review_topics )
+Topic Reviews = DISTINCTCOUNT ( fact_review_topics[review_id] )
+Topic Count =
+VAR ComplaintIsFiltered = ISCROSSFILTERED ( dim_complaints[complaint_id] )
+VAR ComplaintReviewIds = VALUES ( fact_review_complaints[review_id] )
+RETURN
+    IF (
+        ComplaintIsFiltered,
+        CALCULATE (
+            DISTINCTCOUNT ( fact_review_topics[topic_id] ),
+            KEEPFILTERS ( TREATAS ( ComplaintReviewIds, fact_review_topics[review_id] ) )
+        ),
+        DISTINCTCOUNT ( fact_review_topics[topic_id] )
+    )
+
+Complaint Mentions = COUNTROWS ( fact_review_complaints )
+Complaint Reviews = DISTINCTCOUNT ( fact_review_complaints[review_id] )
+Complaint Count =
+VAR TopicIsFiltered = ISCROSSFILTERED ( dim_topics[topic_id] )
+VAR TopicReviewIds = VALUES ( fact_review_topics[review_id] )
+RETURN
+    IF (
+        TopicIsFiltered,
+        CALCULATE (
+            DISTINCTCOUNT ( fact_review_complaints[complaint_id] ),
+            KEEPFILTERS ( TREATAS ( TopicReviewIds, fact_review_complaints[review_id] ) )
+        ),
+        DISTINCTCOUNT ( fact_review_complaints[complaint_id] )
+    )
+Active Complaints =
+CALCULATE (
+    DISTINCTCOUNT ( fact_review_complaints[complaint_id] ),
+    dim_complaints[status] <> "resolved"
+)
+
+Previous Period Reviews =
+VAR SelectedDays = COUNTROWS ( VALUES ( dim_dates[date_key] ) )
+RETURN
+    CALCULATE ( [Total Reviews], DATEADD ( dim_dates[date_key], -SelectedDays, DAY ) )
+
+Review Growth =
+DIVIDE ( [Total Reviews] - [Previous Period Reviews], [Previous Period Reviews] )
+
+Previous Period Positive % =
+VAR SelectedDays = COUNTROWS ( VALUES ( dim_dates[date_key] ) )
+RETURN
+    CALCULATE ( [Positive %], DATEADD ( dim_dates[date_key], -SelectedDays, DAY ) )
+
+Sentiment Change = [Positive %] - [Previous Period Positive %]
+
+Previous Period Complaint Reviews =
+VAR SelectedDays = COUNTROWS ( VALUES ( dim_dates[date_key] ) )
+RETURN
+    CALCULATE ( [Complaint Reviews], DATEADD ( dim_dates[date_key], -SelectedDays, DAY ) )
+
+Complaint Change =
+DIVIDE (
+    [Complaint Reviews] - [Previous Period Complaint Reviews],
+    [Previous Period Complaint Reviews]
+)
+
+Successful Analyses =
+CALCULATE ( COUNTROWS ( fact_model_attempts ), fact_model_attempts[outcome] = "success" )
+
+Failed Analyses =
+CALCULATE ( COUNTROWS ( fact_model_attempts ), fact_model_attempts[outcome] = "failure" )
+
+Reviews Processed =
+CALCULATE (
+    DISTINCTCOUNT ( fact_model_attempts[review_id] ),
+    fact_model_attempts[outcome] = "success"
+)
+
+Analysis Failure Rate = DIVIDE ( [Failed Analyses], [Successful Analyses] + [Failed Analyses] )
+Average Processing Latency (ms) = AVERAGE ( fact_model_attempts[latency_ms] )
+P95 Processing Latency (ms) =
+PERCENTILEX.INC ( fact_model_attempts, fact_model_attempts[latency_ms], 0.95 )
+Confidence Samples = COUNTROWS ( fact_model_confidences )
+Average Confidence = AVERAGE ( fact_model_confidences[confidence] )
+
+Insight Evidence Review Flag =
+VAR CurrentReviewId = SELECTEDVALUE ( fact_reviews[review_id] )
+VAR EvidenceReviewIds = VALUES ( bridge_insight_reviews[review_id] )
+RETURN
+    IF (
+        ISINSCOPE ( fact_reviews[review_id] )
+            && ISFILTERED ( fact_insights[insight_id] )
+            && NOT ISBLANK ( CurrentReviewId )
+            && CONTAINS ( EvidenceReviewIds, bridge_insight_reviews[review_id], CurrentReviewId ),
+        1
+    )
+
+Current Sentiment Sample Count =
+CALCULATE ( [Successful Analyses], REMOVEFILTERS ( dim_sentiments ) )
+
+Previous Sentiment Sample Count =
+VAR SelectedDays = COUNTROWS ( VALUES ( dim_dates[date_key] ) )
+RETURN
+    CALCULATE (
+        [Successful Analyses],
+        REMOVEFILTERS ( dim_sentiments ),
+        DATEADD ( dim_dates[date_key], -SelectedDays, DAY )
+    )
+
+Sentiment Distribution Drift =
+VAR CurrentN = [Current Sentiment Sample Count]
+VAR PreviousN = [Previous Sentiment Sample Count]
+VAR PeriodDays = COUNTROWS ( VALUES ( dim_dates[date_key] ) )
+VAR Drift =
+    0.5
+        * SUMX (
+            FILTER ( ALL ( dim_sentiments[sentiment] ), dim_sentiments[sentiment] <> "unanalyzed" ),
+            VAR SelectedSentiment = dim_sentiments[sentiment]
+            VAR CurrentShare =
+                DIVIDE (
+                    CALCULATE (
+                        [Successful Analyses],
+                        fact_model_attempts[sentiment] = SelectedSentiment
+                    ),
+                    CurrentN
+                )
+            VAR PreviousShare =
+                DIVIDE (
+                    CALCULATE (
+                        [Successful Analyses],
+                        fact_model_attempts[sentiment] = SelectedSentiment,
+                        DATEADD ( dim_dates[date_key], -PeriodDays, DAY )
+                    ),
+                    PreviousN
+                )
+            RETURN ABS ( CurrentShare - PreviousShare )
+        )
+RETURN
+    IF ( CurrentN >= 30 && PreviousN >= 30, Drift )

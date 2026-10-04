@@ -1,0 +1,14 @@
+table dim_ratings
+	column rating
+		dataType: int64
+		isKey
+		sourceColumn: rating
+		summarizeBy: none
+	partition dim_ratings = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="dim_ratings"]}[Data]
+			in
+				View

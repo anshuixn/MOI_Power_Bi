@@ -1,0 +1,92 @@
+table fact_insights
+	column organization_id
+		dataType: string
+		sourceColumn: organization_id
+		summarizeBy: none
+	column insight_id
+		dataType: string
+		isKey
+		sourceColumn: insight_id
+		summarizeBy: none
+	column date_key
+		dataType: dateTime
+		sourceColumn: date_key
+		summarizeBy: none
+	column generated_at
+		dataType: dateTime
+		sourceColumn: generated_at
+		summarizeBy: none
+	column insight_type
+		dataType: string
+		sourceColumn: insight_type
+		summarizeBy: none
+	column title
+		dataType: string
+		sourceColumn: title
+		summarizeBy: none
+	column summary
+		dataType: string
+		sourceColumn: summary
+		summarizeBy: none
+	column confidence
+		dataType: decimal
+		sourceColumn: confidence
+		summarizeBy: none
+	column impact
+		dataType: string
+		sourceColumn: impact
+		summarizeBy: none
+	column topic_id
+		dataType: string
+		sourceColumn: topic_id
+		summarizeBy: none
+	column product_id
+		dataType: string
+		sourceColumn: product_id
+		summarizeBy: none
+	column complaint_id
+		dataType: string
+		sourceColumn: complaint_id
+		summarizeBy: none
+	column provider
+		dataType: string
+		sourceColumn: provider
+		summarizeBy: none
+	column model_name
+		dataType: string
+		sourceColumn: model_name
+		summarizeBy: none
+	column model_version
+		dataType: string
+		sourceColumn: model_version
+		summarizeBy: none
+	column supporting_metrics_json
+		dataType: string
+		sourceColumn: supporting_metrics_json
+		summarizeBy: none
+	measure 'Stored Insights' = DISTINCTCOUNT ( fact_insights[insight_id] )
+		formatString: #,0
+	measure 'Insight Evidence Review Flag' =
+			VAR CurrentReviewId = SELECTEDVALUE ( fact_reviews[review_id] )
+			VAR EvidenceReviewIds = VALUES ( bridge_insight_reviews[review_id] )
+			RETURN
+				IF (
+					ISINSCOPE ( fact_reviews[review_id] )
+						&& ISFILTERED ( fact_insights[insight_id] )
+						&& NOT ISBLANK ( CurrentReviewId )
+						&& CONTAINS (
+							EvidenceReviewIds,
+							bridge_insight_reviews[review_id],
+							CurrentReviewId
+						),
+					1
+				)
+		formatString: 0
+	partition fact_insights = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="fact_insights"]}[Data]
+			in
+				View

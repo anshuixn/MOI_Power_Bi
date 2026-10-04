@@ -2,17 +2,19 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.schemas.common import APIModel
 
 
-class PIIStatus(BaseModel):
+class PIIStatus(APIModel):
     is_clean: bool
     redacted_fields: list[str] = Field(default_factory=list)
     detected_entities: list[str] = Field(default_factory=list)
     processed_at: str | None = None
 
 
-class SentimentScore(BaseModel):
+class SentimentScore(APIModel):
     label: Literal["positive", "neutral", "negative"]
     positive: float
     neutral: float
@@ -20,7 +22,7 @@ class SentimentScore(BaseModel):
     confidence: float
 
 
-class Review(BaseModel):
+class Review(APIModel):
     id: str
     text: str
     rating: int
@@ -36,7 +38,7 @@ class Review(BaseModel):
     processing_status: Literal["pending", "queued", "processing", "processed", "failed", "skipped"] = "processed"
 
 
-class Product(BaseModel):
+class Product(APIModel):
     id: str
     name: str
     sku: str

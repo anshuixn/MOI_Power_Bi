@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import analytics, complaints, insights, reviews, topics
+from app.api.routes import analytics, complaints, insights, model_health, reviews, topics
 from app.core.config import settings
 from app.core.exceptions import (
     DatabaseOperationError,
@@ -39,6 +39,7 @@ api_v1_routers = (
     topics.router,
     complaints.router,
     insights.router,
+    model_health.router,
 )
 for api_router in api_v1_routers:
     app.include_router(api_router, prefix="/api/v1")

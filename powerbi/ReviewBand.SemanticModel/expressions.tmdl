@@ -1,0 +1,5 @@
+expression PbiServer = "YOUR_SUPABASE_POSTGRES_HOST:5432" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	annotation PBI_ResultType = Text
+
+expression PbiDatabase = "postgres" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	annotation PBI_ResultType = Text

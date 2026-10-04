@@ -1,5 +1,6 @@
 import type { Result, FilterState, Topic, Review } from '@/types'
 import type { ITopicService } from '@/services/contracts'
+import type { PaginatedResult } from '@/services/contracts'
 import { TOPICS, REVIEWS } from '@/data/mockData'
 
 function sleep(ms: number): Promise<void> {
@@ -23,10 +24,27 @@ export class MockTopicService implements ITopicService {
     return { status: 'success', data: topic }
   }
 
-  async getTopicReviews(topicId: string, _filters: FilterState): Promise<Result<Review[]>> {
+  async getTopicReviews(
+    topicId: string,
+    _filters: FilterState,
+    options: { page?: number; pageSize?: number } = {},
+  ): Promise<Result<PaginatedResult<Review>>> {
     await sleep(250)
     const reviews = REVIEWS.filter(r => r.topicIds.includes(topicId))
-    return { status: 'success', data: reviews }
+    const pageSize = options.pageSize ?? 10
+    const pageCount = Math.max(1, Math.ceil(reviews.length / pageSize))
+    const page = Math.min(options.page ?? 1, pageCount)
+    const start = (page - 1) * pageSize
+    return {
+      status: 'success',
+      data: {
+        items: reviews.slice(start, start + pageSize),
+        total: reviews.length,
+        page,
+        pageSize,
+        pageCount,
+      },
+    }
   }
 }
 

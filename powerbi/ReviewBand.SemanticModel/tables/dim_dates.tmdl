@@ -1,0 +1,58 @@
+table dim_dates
+	column date_key
+		dataType: dateTime
+		isKey
+		sourceColumn: date_key
+		summarizeBy: none
+	column year
+		dataType: int64
+		sourceColumn: year
+		summarizeBy: none
+	column quarter_number
+		dataType: int64
+		sourceColumn: quarter_number
+		summarizeBy: none
+	column quarter
+		dataType: string
+		sourceColumn: quarter
+		summarizeBy: none
+	column month_number
+		dataType: int64
+		sourceColumn: month_number
+		summarizeBy: none
+	column month_name
+		dataType: string
+		sourceColumn: month_name
+		summarizeBy: none
+	column year_month
+		dataType: string
+		sourceColumn: year_month
+		summarizeBy: none
+	column week_start
+		dataType: dateTime
+		sourceColumn: week_start
+		summarizeBy: none
+	column week_number
+		dataType: int64
+		sourceColumn: week_number
+		summarizeBy: none
+	column day_of_month
+		dataType: int64
+		sourceColumn: day_of_month
+		summarizeBy: none
+	column day_name
+		dataType: string
+		sourceColumn: day_name
+		summarizeBy: none
+	column is_weekend
+		dataType: boolean
+		sourceColumn: is_weekend
+		summarizeBy: none
+	partition dim_dates = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="dim_dates"]}[Data]
+			in
+				View

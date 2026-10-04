@@ -66,7 +66,11 @@ export interface IReviewService {
 export interface ITopicService {
   getTopics(filters: FilterState): Promise<Result<Topic[]>>
   getTopicById(id: string): Promise<Result<Topic>>
-  getTopicReviews(topicId: string, filters: FilterState): Promise<Result<Review[]>>
+  getTopicReviews(
+    topicId: string,
+    filters: FilterState,
+    options?: { page?: number; pageSize?: number }
+  ): Promise<Result<PaginatedResult<Review>>>
 }
 
 // ── Complaint Service ─────────────────────────────────────────

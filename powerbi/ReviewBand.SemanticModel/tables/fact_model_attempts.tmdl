@@ -1,0 +1,136 @@
+table fact_model_attempts
+	column organization_id
+		dataType: string
+		sourceColumn: organization_id
+		summarizeBy: none
+	column model_metric_id
+		dataType: string
+		isKey
+		sourceColumn: model_metric_id
+		summarizeBy: none
+	column review_id
+		dataType: string
+		sourceColumn: review_id
+		summarizeBy: none
+	column date_key
+		dataType: dateTime
+		sourceColumn: date_key
+		summarizeBy: none
+	column recorded_at
+		dataType: dateTime
+		sourceColumn: recorded_at
+		summarizeBy: none
+	column model_version_id
+		dataType: string
+		sourceColumn: model_version_id
+		summarizeBy: none
+	column product_id
+		dataType: string
+		sourceColumn: product_id
+		summarizeBy: none
+	column source_id
+		dataType: string
+		sourceColumn: source_id
+		summarizeBy: none
+	column attempt
+		dataType: int64
+		sourceColumn: attempt
+		summarizeBy: none
+	column outcome
+		dataType: string
+		sourceColumn: outcome
+		summarizeBy: none
+	column latency_ms
+		dataType: int64
+		sourceColumn: latency_ms
+		summarizeBy: none
+	column sentiment_confidence
+		dataType: decimal
+		sourceColumn: sentiment_confidence
+		summarizeBy: none
+	column sentiment
+		dataType: string
+		sourceColumn: sentiment
+		summarizeBy: none
+	column error_code
+		dataType: string
+		sourceColumn: error_code
+		summarizeBy: none
+	column model_status
+		dataType: string
+		sourceColumn: model_status
+		summarizeBy: none
+	measure 'Successful Analyses' =
+			CALCULATE ( COUNTROWS ( fact_model_attempts ), fact_model_attempts[outcome] = "success" )
+		formatString: #,0
+	measure 'Failed Analyses' =
+			CALCULATE ( COUNTROWS ( fact_model_attempts ), fact_model_attempts[outcome] = "failure" )
+		formatString: #,0
+	measure 'Reviews Processed' =
+			CALCULATE (
+				DISTINCTCOUNT ( fact_model_attempts[review_id] ),
+				fact_model_attempts[outcome] = "success"
+			)
+		formatString: #,0
+	measure 'Analysis Failure Rate' =
+			DIVIDE ( [Failed Analyses], [Successful Analyses] + [Failed Analyses] )
+		formatString: 0.0%
+	measure 'Average Processing Latency (ms)' = AVERAGE ( fact_model_attempts[latency_ms] )
+		formatString: #,0
+	measure 'P95 Processing Latency (ms)' =
+			PERCENTILEX.INC ( fact_model_attempts, fact_model_attempts[latency_ms], 0.95 )
+		formatString: #,0
+	measure 'Current Sentiment Sample Count' =
+			CALCULATE ( [Successful Analyses], REMOVEFILTERS ( dim_sentiments ) )
+		formatString: #,0
+	measure 'Previous Sentiment Sample Count' =
+			VAR SelectedDays = COUNTROWS ( VALUES ( dim_dates[date_key] ) )
+			RETURN
+				CALCULATE (
+					[Successful Analyses],
+					REMOVEFILTERS ( dim_sentiments ),
+					DATEADD ( dim_dates[date_key], -SelectedDays, DAY )
+				)
+		formatString: #,0
+	measure 'Sentiment Distribution Drift' =
+			VAR CurrentN = [Current Sentiment Sample Count]
+			VAR PreviousN = [Previous Sentiment Sample Count]
+			VAR PeriodDays = COUNTROWS ( VALUES ( dim_dates[date_key] ) )
+			VAR Drift =
+				0.5
+					* SUMX (
+						FILTER (
+							ALL ( dim_sentiments[sentiment] ),
+							dim_sentiments[sentiment] <> "unanalyzed"
+						),
+						VAR SelectedSentiment = dim_sentiments[sentiment]
+						VAR CurrentShare =
+							DIVIDE (
+								CALCULATE (
+									[Successful Analyses],
+									fact_model_attempts[sentiment] = SelectedSentiment
+								),
+								CurrentN
+							)
+						VAR PreviousShare =
+							DIVIDE (
+								CALCULATE (
+									[Successful Analyses],
+									fact_model_attempts[sentiment] = SelectedSentiment,
+									DATEADD ( dim_dates[date_key], -PeriodDays, DAY )
+								),
+								PreviousN
+							)
+						RETURN ABS ( CurrentShare - PreviousShare )
+					)
+			RETURN
+				IF ( CurrentN >= 30 && PreviousN >= 30, Drift )
+		formatString: 0.0%
+	partition fact_model_attempts = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="fact_model_attempts"]}[Data]
+			in
+				View

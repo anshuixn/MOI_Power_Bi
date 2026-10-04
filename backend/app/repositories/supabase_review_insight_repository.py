@@ -25,8 +25,14 @@ _REVIEW_FIELDS = (
 class SupabaseReviewInsightRepository:
     """Supabase PostgREST adapter scoped to one authenticated organization."""
 
-    def __init__(self, client: Client, organization_id: UUID) -> None:
+    def __init__(
+        self,
+        client: Client,
+        organization_id: UUID,
+        insight_write_client: Client | None = None,
+    ) -> None:
         self._client = client
+        self._insight_write_client = insight_write_client
         self._organization_id = str(organization_id)
 
     def list_reviews(self, options: dict[str, Any]) -> dict[str, Any]:
@@ -41,19 +47,22 @@ class SupabaseReviewInsightRepository:
         descending = options.get("sort_order", "desc") == "desc"
         analysis = "analysis:review_analysis"
         topic_links = "topic_links:review_topics"
+        complaint_links = "complaint_links:review_complaints"
         source = "source:sources"
         if options.get("sentiment") or options.get("search"):
             analysis += "!inner"
         if options.get("topic_id"):
             topic_links += "!inner"
+        if options.get("complaint_id"):
+            complaint_links += "!inner"
         if options.get("source"):
             source += "!inner"
 
         fields = _REVIEW_FIELDS.replace(
             "analysis:review_analysis", analysis
         ).replace("topic_links:review_topics", topic_links).replace(
-            "source:sources", source
-        )
+            "complaint_links:review_complaints", complaint_links
+        ).replace("source:sources", source)
         query = (
             self._client.table("reviews")
             .select(fields, count="exact")
@@ -73,6 +82,15 @@ class SupabaseReviewInsightRepository:
                 "topic_links.topic_id",
                 self._uuid_filter(options["topic_id"], "topic_id"),
             )
+        if options.get("complaint_id"):
+            query = query.eq(
+                "complaint_links.complaint_id",
+                self._uuid_filter(options["complaint_id"], "complaint_id"),
+            )
+        if options.get("start_at"):
+            query = query.gte("review_date", options["start_at"])
+        if options.get("end_at"):
+            query = query.lt("review_date", options["end_at"])
         if options.get("search"):
             query = query.ilike(
                 "analysis.sanitized_text",
@@ -118,129 +136,70 @@ class SupabaseReviewInsightRepository:
         row = self._execute(query).data
         return self._review_to_api(row) if row else None
 
-    def list_topics(self) -> list[DataRecord]:
-        topics = self._fetch_all(
-            "topics",
-            "id,name,description,keywords",
-        )
-        links = self._fetch_all(
-            "review_topics",
-            "topic_id,review_id,review:reviews(analysis:review_analysis(sentiment))",
-        )
-        links_by_topic: dict[str, list[dict[str, Any]]] = {}
-        for link in links:
-            links_by_topic.setdefault(str(link["topic_id"]), []).append(link)
+    def list_topics(self, options: dict[str, Any]) -> list[DataRecord]:
+        response = self._execute(self._client.rpc(
+            "get_topic_summaries", self._catalog_rpc_params(options)
+        ))
+        return response.data or []
 
-        result = []
-        for topic in topics:
-            topic_links = links_by_topic.get(str(topic["id"]), [])
-            sentiment_counts = {"positive": 0, "neutral": 0, "negative": 0}
-            for link in topic_links:
-                review = self._one(link.get("review"))
-                analysis = self._one((review or {}).get("analysis"))
-                sentiment = (analysis or {}).get("sentiment")
-                if sentiment in sentiment_counts:
-                    sentiment_counts[sentiment] += 1
-            analyzed = sum(sentiment_counts.values())
-            result.append({
-                "id": str(topic["id"]),
-                "name": topic["name"],
-                "mentions": len(topic_links),
-                "positive_pct": self._percentage(sentiment_counts["positive"], analyzed),
-                "neutral_pct": self._percentage(sentiment_counts["neutral"], analyzed),
-                "negative_pct": self._percentage(sentiment_counts["negative"], analyzed),
-                "keywords": topic.get("keywords") or [],
-                "trend": "stable",
-                "trend_pct": 0.0,
-                "sample_review_ids": [str(link["review_id"]) for link in topic_links[:3]],
-            })
-        return result
-
-    def get_topic(self, topic_id: str) -> DataRecord | None:
+    def get_topic(
+        self, topic_id: str, options: dict[str, Any]
+    ) -> DataRecord | None:
         identifier = self._valid_uuid_or_none(topic_id)
         if identifier is None:
             return None
-        response = self._execute(
-            self._client.table("topics")
-            .select("id")
-            .eq("organization_id", self._organization_id)
-            .eq("id", identifier)
-            .maybe_single()
+        return next(
+            (
+                topic for topic in self.list_topics({
+                    **options,
+                    "topic_id": identifier,
+                })
+                if topic["id"] == identifier
+            ),
+            None,
         )
-        if response.data is None:
-            return None
-        return next((topic for topic in self.list_topics() if topic["id"] == identifier), None)
 
-    def get_topic_reviews(self, topic_id: str) -> list[DataRecord]:
-        identifier = self._valid_uuid_or_none(topic_id)
-        if identifier is None:
-            return []
-        links = self._fetch_all(
-            "review_topics",
-            "review_id",
-            filters=(("topic_id", identifier),),
-        )
-        review_ids = [str(link["review_id"]) for link in links]
-        if not review_ids:
-            return []
-        rows = []
-        for start in range(0, len(review_ids), 200):
-            rows.extend(
-                self._execute(
-                    self._client.table("reviews")
-                    .select(_REVIEW_FIELDS)
-                    .eq("organization_id", self._organization_id)
-                    .in_("id", review_ids[start:start + 200])
-                    .order("review_date", desc=True)
-                ).data or []
-            )
-        return [self._review_to_api(row) for row in rows]
+    def get_topic_reviews(
+        self, topic_id: str, options: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.list_reviews({**options, "topic_id": topic_id})
 
-    def list_complaints(self) -> list[DataRecord]:
-        complaints = self._fetch_all(
-            "complaints",
-            "id,category,description,severity,status",
-        )
-        links = self._fetch_all(
-            "review_complaints",
-            "complaint_id,review_id",
-        )
-        links_by_complaint: dict[str, list[str]] = {}
-        for link in links:
-            links_by_complaint.setdefault(str(link["complaint_id"]), []).append(
-                str(link["review_id"])
-            )
-        return [
-            {
-                "id": str(item["id"]),
-                "category": item["category"],
-                "active_count": len(links_by_complaint.get(str(item["id"]), []))
-                if item["status"] != "resolved" else 0,
-                "severity": item["severity"],
-                "trend": "stable",
-                "trend_pct": 0.0,
-                "description": item["description"],
-                "example_review_ids": links_by_complaint.get(str(item["id"]), [])[:2],
-                "status": item["status"],
-            }
-            for item in complaints
-        ]
+    def list_complaints(self, options: dict[str, Any]) -> list[DataRecord]:
+        response = self._execute(self._client.rpc(
+            "get_complaint_summaries",
+            self._catalog_rpc_params(options, include_complaint_filters=True),
+        ))
+        return response.data or []
 
-    def get_complaint(self, complaint_id: str) -> DataRecord | None:
+    def get_complaint(
+        self, complaint_id: str, options: dict[str, Any]
+    ) -> DataRecord | None:
         identifier = self._valid_uuid_or_none(complaint_id)
         if identifier is None:
             return None
         return next(
-            (item for item in self.list_complaints() if item["id"] == identifier),
+            (
+                complaint for complaint in self.list_complaints({
+                    **options,
+                    "complaint_id": identifier,
+                })
+                if complaint["id"] == identifier
+            ),
             None,
         )
+
+    def get_complaint_reviews(
+        self, complaint_id: str, options: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.list_reviews({**options, "complaint_id": complaint_id})
 
     def list_insights(self, options: dict[str, Any]) -> list[DataRecord]:
         query = (
             self._client.table("ai_insights")
             .select(
                 "id,kind,title,summary,confidence,impact,topic_id,product_id,"
-                "generated_at,is_new"
+                "complaint_id,supporting_metrics,provider,model_name,model_version,"
+                "generated_at,is_new,insight_reviews(review_id)"
             )
             .eq("organization_id", self._organization_id)
             .order("generated_at", desc=True)
@@ -257,22 +216,10 @@ class SupabaseReviewInsightRepository:
             query = query.lt("generated_at", options["end_at"])
         if options.get("min_confidence") is not None:
             query = query.gte("confidence", options["min_confidence"])
+        if options.get("limit"):
+            query = query.range(0, int(options["limit"]) - 1)
         rows = self._execute(query).data or []
-        return [
-            {
-                "id": str(row["id"]),
-                "kind": row["kind"],
-                "title": row["title"],
-                "summary": row["summary"],
-                "confidence": float(row["confidence"]),
-                "impact": row["impact"],
-                "topic_id": str(row["topic_id"]) if row.get("topic_id") else None,
-                "product_id": str(row["product_id"]) if row.get("product_id") else None,
-                "generated_at": row["generated_at"],
-                "is_new": row["is_new"],
-            }
-            for row in rows
-        ]
+        return [self._insight_to_api(row) for row in rows]
 
     def get_insight(self, insight_id: str) -> DataRecord | None:
         identifier = self._valid_uuid_or_none(insight_id)
@@ -282,7 +229,8 @@ class SupabaseReviewInsightRepository:
             self._client.table("ai_insights")
             .select(
                 "id,kind,title,summary,confidence,impact,topic_id,product_id,"
-                "generated_at,is_new"
+                "complaint_id,supporting_metrics,provider,model_name,model_version,"
+                "generated_at,is_new,insight_reviews(review_id)"
             )
             .eq("organization_id", self._organization_id)
             .eq("id", identifier)
@@ -290,6 +238,32 @@ class SupabaseReviewInsightRepository:
         )
         row = response.data
         return self._insight_to_api(row) if row else None
+
+    def create_insight(self, insight: DataRecord) -> DataRecord:
+        response = self._execute(
+            (self._insight_write_client or self._client).rpc(
+                "store_ai_insight",
+                {
+                    "p_organization_id": self._organization_id,
+                    "p_provider": insight["provider"],
+                    "p_model_name": insight["model"],
+                    "p_model_version": insight["model_version"],
+                    "p_kind": insight["kind"],
+                    "p_title": insight["title"],
+                    "p_summary": insight["summary"],
+                    "p_confidence": insight["confidence"],
+                    "p_impact": insight["impact"],
+                    "p_topic_id": insight.get("topic_id"),
+                    "p_product_id": insight.get("product_id"),
+                    "p_complaint_id": insight.get("complaint_id"),
+                    "p_supporting_metrics": insight["supporting_metrics"],
+                    "p_review_ids": insight["related_review_ids"],
+                },
+            )
+        )
+        if not isinstance(response.data, dict):
+            raise DatabaseOperationError("Insight storage returned an invalid response")
+        return self._insight_to_api(response.data)
 
     def list_products(self) -> list[DataRecord]:
         return [
@@ -424,17 +398,50 @@ class SupabaseReviewInsightRepository:
         return response.data
 
     def dashboard_data(self, filters: dict[str, Any]) -> dict[str, Any]:
-        params = {
+        params = self._catalog_rpc_params(filters)
+        return self._execute(self._client.rpc("get_dashboard_summary", params)).data or {}
+
+    def model_health_data(self, days: int) -> dict[str, Any]:
+        response = self._execute(
+            self._client.rpc(
+                "get_model_health",
+                {
+                    "p_organization_id": self._organization_id,
+                    "p_days": days,
+                },
+            )
+        )
+        if not isinstance(response.data, dict):
+            raise DatabaseOperationError("Model health query returned an invalid response")
+        return response.data
+
+    def _catalog_rpc_params(
+        self,
+        filters: dict[str, Any],
+        *,
+        include_complaint_filters: bool = False,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {
             "p_organization_id": self._organization_id,
             "p_start_at": filters["start_at"],
             "p_end_at": filters["end_at"],
-            "p_product_id": (
-                self._uuid_filter(filters["product_id"], "product_id")
-                if filters.get("product_id") else None
-            ),
+            "p_product_id": None,
             "p_source": filters.get("source"),
+            "p_sentiment": filters.get("sentiment"),
+            "p_topic_id": None,
+            "p_complaint_id": None,
         }
-        return self._execute(self._client.rpc("get_dashboard_summary", params)).data or {}
+        if include_complaint_filters:
+            params["p_severity"] = filters.get("severity")
+            params["p_status"] = filters.get("status")
+        if filters.get("product_id"):
+            params["p_product_id"] = self._uuid_filter(
+                filters["product_id"], "product_id"
+            )
+        for key in ("topic_id", "complaint_id"):
+            if filters.get(key):
+                params[f"p_{key}"] = self._uuid_filter(filters[key], key)
+        return params
 
     @staticmethod
     def _one(value: Any) -> dict[str, Any] | None:
@@ -494,6 +501,15 @@ class SupabaseReviewInsightRepository:
 
     @staticmethod
     def _insight_to_api(row: dict[str, Any]) -> DataRecord:
+        links = row.get("insight_reviews") or []
+        if not links and row.get("related_review_ids"):
+            related_review_ids = row["related_review_ids"]
+        else:
+            related_review_ids = [
+                str(link["review_id"])
+                for link in links
+                if isinstance(link, dict) and link.get("review_id")
+            ]
         return {
             "id": str(row["id"]),
             "kind": row["kind"],
@@ -503,6 +519,14 @@ class SupabaseReviewInsightRepository:
             "impact": row["impact"],
             "topic_id": str(row["topic_id"]) if row.get("topic_id") else None,
             "product_id": str(row["product_id"]) if row.get("product_id") else None,
+            "complaint_id": (
+                str(row["complaint_id"]) if row.get("complaint_id") else None
+            ),
+            "supporting_metrics": row.get("supporting_metrics") or {},
+            "provider": row.get("provider") or "unknown",
+            "model": row.get("model_name") or "unknown",
+            "model_version": row.get("model_version") or "unknown",
+            "related_review_ids": related_review_ids,
             "generated_at": row["generated_at"],
             "is_new": row["is_new"],
         }
@@ -542,10 +566,6 @@ class SupabaseReviewInsightRepository:
             return query.execute()
         except (APIError, HTTPError) as exc:
             raise DatabaseOperationError("Supabase database operation failed") from exc
-
-    @staticmethod
-    def _percentage(value: int, total: int) -> float:
-        return round(value * 100 / total, 1) if total else 0.0
 
     @staticmethod
     def _valid_uuid_or_none(value: str) -> str | None:

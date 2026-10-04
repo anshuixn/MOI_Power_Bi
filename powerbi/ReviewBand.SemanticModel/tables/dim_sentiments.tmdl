@@ -1,0 +1,14 @@
+table dim_sentiments
+	column sentiment
+		dataType: string
+		isKey
+		sourceColumn: sentiment
+		summarizeBy: none
+	partition dim_sentiments = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="dim_sentiments"]}[Data]
+			in
+				View

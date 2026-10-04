@@ -65,25 +65,63 @@ class ApiContractRepository:
     def get_review(self, review_id: str) -> dict[str, Any] | None:
         return next((row for row in mock_data.REVIEWS if row["id"] == review_id), None)
 
-    def list_topics(self) -> list[dict[str, Any]]:
+    def list_topics(self, _options: dict[str, Any]) -> list[dict[str, Any]]:
         return list(mock_data.TOPICS)
 
-    def get_topic(self, topic_id: str) -> dict[str, Any] | None:
+    def get_topic(
+        self, topic_id: str, _options: dict[str, Any]
+    ) -> dict[str, Any] | None:
         return next((row for row in mock_data.TOPICS if row["id"] == topic_id), None)
 
-    def get_topic_reviews(self, topic_id: str) -> list[dict[str, Any]]:
-        return [
+    def get_topic_reviews(
+        self, topic_id: str, options: dict[str, Any]
+    ) -> dict[str, Any]:
+        reviews = [
             row for row in mock_data.REVIEWS if topic_id in row["topic_ids"]
         ]
+        page = options.get("page", 1)
+        page_size = options.get("page_size", 10)
+        page_count = max(1, (len(reviews) + page_size - 1) // page_size)
+        page = min(page, page_count)
+        start = (page - 1) * page_size
+        return {
+            "items": reviews[start:start + page_size],
+            "total": len(reviews),
+            "page": page,
+            "page_size": page_size,
+            "page_count": page_count,
+        }
 
-    def list_complaints(self) -> list[dict[str, Any]]:
+    def list_complaints(self, _options: dict[str, Any]) -> list[dict[str, Any]]:
         return list(mock_data.COMPLAINTS)
 
-    def get_complaint(self, complaint_id: str) -> dict[str, Any] | None:
+    def get_complaint(
+        self, complaint_id: str, _options: dict[str, Any]
+    ) -> dict[str, Any] | None:
         return next(
             (row for row in mock_data.COMPLAINTS if row["id"] == complaint_id),
             None,
         )
+
+    def get_complaint_reviews(
+        self, complaint_id: str, options: dict[str, Any]
+    ) -> dict[str, Any]:
+        reviews = [
+            row for row in mock_data.REVIEWS
+            if row["complaint_id"] == complaint_id
+        ]
+        page = options.get("page", 1)
+        page_size = options.get("page_size", 10)
+        page_count = max(1, (len(reviews) + page_size - 1) // page_size)
+        page = min(page, page_count)
+        start = (page - 1) * page_size
+        return {
+            "items": reviews[start:start + page_size],
+            "total": len(reviews),
+            "page": page,
+            "page_size": page_size,
+            "page_count": page_count,
+        }
 
     def list_insights(self, options: dict[str, Any]) -> list[dict[str, Any]]:
         items = list(mock_data.INSIGHTS)
@@ -129,9 +167,15 @@ class ApiContractRepository:
                 {**row, "review_count": row["review_count"]}
                 for row in mock_data.SENTIMENT_TREND
             ],
+            "review_volume": [
+                {"date": row["date"], "review_count": row["review_count"]}
+                for row in mock_data.SENTIMENT_TREND
+            ],
             "topics": mock_data.TOPICS,
             "complaints": mock_data.COMPLAINTS,
             "active_complaints": mock_data.BASELINE_ACTIVE_COMPLAINTS,
+            "product_comparison": [],
+            "source_comparison": [],
         }
 
 

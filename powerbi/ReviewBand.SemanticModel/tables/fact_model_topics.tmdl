@@ -1,0 +1,35 @@
+table fact_model_topics
+	column organization_id
+		dataType: string
+		sourceColumn: organization_id
+		summarizeBy: none
+	column model_metric_id
+		dataType: string
+		sourceColumn: model_metric_id
+		summarizeBy: none
+	column review_id
+		dataType: string
+		sourceColumn: review_id
+		summarizeBy: none
+	column date_key
+		dataType: dateTime
+		sourceColumn: date_key
+		summarizeBy: none
+	column model_version_id
+		dataType: string
+		sourceColumn: model_version_id
+		summarizeBy: none
+	column topic_id
+		dataType: string
+		sourceColumn: topic_id
+		summarizeBy: none
+	measure 'Model Topic Mentions' = COUNTROWS ( fact_model_topics )
+		formatString: #,0
+	partition fact_model_topics = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="fact_model_topics"]}[Data]
+			in
+				View

@@ -134,7 +134,11 @@ export function ReviewsExplorer() {
                       </div>
                     </div>
                   </div>
-                  <SentimentChip label={review.sentiment.label} score={review.sentiment.confidence} />
+                  {review.sentiment ? (
+                    <SentimentChip label={review.sentiment.label} score={review.sentiment.confidence} />
+                  ) : (
+                    <span style={{ color: '#8B83A3', fontSize: 12 }}>Analysis pending</span>
+                  )}
                 </div>
                 <p style={{ color: '#4B4466', fontSize: 15, lineHeight: 1.5, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {review.text}
@@ -181,7 +185,11 @@ export function ReviewsExplorer() {
                <div className="glass-secondary" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                    <span style={{ color: '#8B83A3', fontSize: 13 }}>Sentiment</span>
-                   <SentimentChip label={selectedReview.sentiment.label} score={selectedReview.sentiment.confidence} />
+                   {selectedReview.sentiment ? (
+                     <SentimentChip label={selectedReview.sentiment.label} score={selectedReview.sentiment.confidence} />
+                   ) : (
+                     <span style={{ color: '#8B83A3', fontSize: 12 }}>Analysis pending</span>
+                   )}
                  </div>
                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                    <span style={{ color: '#8B83A3', fontSize: 13 }}>Source</span>
@@ -204,15 +212,19 @@ export function ReviewsExplorer() {
                  </div>
                </div>
                
-               <div className="glass-secondary" style={{ marginTop: 24, padding: 16, background: selectedReview.piiStatus.isClean ? 'rgba(16,185,129,0.05)' : 'rgba(245,158,11,0.05)' }}>
+               <div className="glass-secondary" style={{ marginTop: 24, padding: 16, background: selectedReview.piiStatus ? (selectedReview.piiStatus.isClean ? 'rgba(16,185,129,0.05)' : 'rgba(245,158,11,0.05)') : 'rgba(139,131,163,0.05)' }}>
                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                   {selectedReview.piiStatus.isClean ? <ShieldCheck size={18} color="#10B981" /> : <ShieldAlert size={18} color="#F59E0B" />}
-                   <span style={{ fontWeight: 600, fontSize: 14, color: selectedReview.piiStatus.isClean ? '#10B981' : '#F59E0B' }}>
-                     {selectedReview.piiStatus.isClean ? 'PII Clean' : 'PII Redacted'}
+                   {selectedReview.piiStatus
+                     ? selectedReview.piiStatus.isClean
+                       ? <ShieldCheck size={18} color="#10B981" />
+                       : <ShieldAlert size={18} color="#F59E0B" />
+                     : null}
+                   <span style={{ fontWeight: 600, fontSize: 14, color: selectedReview.piiStatus ? (selectedReview.piiStatus.isClean ? '#10B981' : '#F59E0B') : '#8B83A3' }}>
+                     {!selectedReview.piiStatus ? 'PII status unavailable' : selectedReview.piiStatus.isClean ? 'PII Clean' : 'PII Redacted'}
                    </span>
                  </div>
                  <p style={{ margin: 0, fontSize: 13, color: '#4B4466' }}>
-                   {selectedReview.piiStatus.isClean ? 'No personally identifiable information detected in this review.' : `Redacted fields: ${selectedReview.piiStatus.redactedFields.join(', ')}`}
+                   {!selectedReview.piiStatus ? 'PII processing has not completed for this review.' : selectedReview.piiStatus.isClean ? 'No personally identifiable information detected in this review.' : `Redacted fields: ${selectedReview.piiStatus.redactedFields.join(', ')}`}
                  </p>
                </div>
             </div>

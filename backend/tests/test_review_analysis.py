@@ -12,7 +12,7 @@ from app.core.config import Settings
 from app.integrations import ai_provider
 from app.integrations.ai_provider import (
     AIProviderError,
-    OpenAIReviewAnalysisProvider,
+    GeminiReviewAnalysisProvider,
     ProviderAnalysis,
 )
 from app.schemas.analysis import ReviewAnalysisOutput
@@ -130,8 +130,8 @@ class FakeAnalysisRepository:
 
 
 class FakeProvider:
-    provider_name = "openai"
-    model_name = "gpt-4o-mini"
+    provider_name = "gemini"
+    model_name = "gemini-test"
 
     def __init__(self, outcomes: list[Any] | None = None) -> None:
         self.outcomes = deque(outcomes or [GOOD_ANALYSIS])
@@ -155,7 +155,7 @@ class FakeProvider:
             outcome = ReviewAnalysisOutput.model_validate(outcome)
         return ProviderAnalysis(
             analysis=outcome,
-            model_version="gpt-4o-mini-2026-10-01",
+            model_version="gemini-test-version",
         )
 
 
@@ -170,9 +170,9 @@ def _make_service(
         repository=repo,
         provider=ai_provider,
         settings=Settings(
-            openai_api_key="test-only",
-            ai_provider="openai",
-            openai_model="gpt-4o-mini",
+            gemini_api_key="test-only",
+            ai_provider="gemini",
+            gemini_model="gemini-test",
             analysis_max_attempts=max_attempts,
         ),
     )
@@ -200,35 +200,95 @@ def test_structured_analysis_rejects_invalid_values_extra_fields_and_duplicates(
         })
 
 
-def test_openai_adapter_uses_typed_output_and_only_sanitized_content(monkeypatch) -> None:
+def test_gemini_adapter_uses_typed_output_and_only_sanitized_content(monkeypatch) -> None:
     calls: list[dict[str, Any]] = []
     parsed = ReviewAnalysisOutput.model_validate(GOOD_ANALYSIS)
 
-    class FakeResponses:
-        def parse(self, **kwargs: Any) -> SimpleNamespace:
+    class FakeInteractions:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
             calls.append(kwargs)
             return SimpleNamespace(
-                output_parsed=parsed,
-                model="gpt-4o-mini-2026-10-01",
+                output_text=parsed.model_dump_json(),
+                model_version="gemini-3.8-flash",
             )
 
-    monkeypatch.setattr(
-        ai_provider,
-        "OpenAI",
-        lambda **kwargs: SimpleNamespace(responses=FakeResponses()),
+    class FakeClient:
+        def __init__(self, *, api_key: str) -> None:
+            assert api_key == "server-only-test-key"
+            self.interactions = FakeInteractions()
+
+    monkeypatch.setattr(ai_provider.genai, "Client", FakeClient)
+    provider = GeminiReviewAnalysisProvider(
+        "server-only-test-key",
+        "gemini-3.8-flash",
     )
-    provider = OpenAIReviewAnalysisProvider("server-only-test-key", "gpt-4o-mini")
 
     result = provider.analyze("Email [REDACTED]", ["Delivery"], ["Shipping"])
 
-    assert result.analysis is parsed
-    assert result.model_version == "gpt-4o-mini-2026-10-01"
+    assert result.analysis == parsed
+    assert result.model_version == "gemini-3.8-flash"
+    assert calls[0]["response_format"]["mime_type"] == "application/json"
+    assert (
+        calls[0]["response_format"]["schema"]
+        == ReviewAnalysisOutput.model_json_schema()
+    )
     assert calls[0]["store"] is False
-    assert calls[0]["text_format"] is ReviewAnalysisOutput
-    serialized_input = repr(calls[0]["input"])
+    serialized_input = calls[0]["input"]
     assert "Email [REDACTED]" in serialized_input
     assert "person@example.com" not in serialized_input
     assert "server-only-test-key" not in serialized_input
+
+
+def test_gemini_adapter_rejects_invalid_json_output(monkeypatch) -> None:
+    class FakeInteractions:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
+            assert kwargs["input"]
+            return SimpleNamespace(output_text='{"sentiment":"invalid"}', model_version="v1")
+
+    class FakeClient:
+        def __init__(self, *, api_key: str) -> None:
+            assert api_key == "server-only-test-key"
+            self.interactions = FakeInteractions()
+
+    monkeypatch.setattr(ai_provider.genai, "Client", FakeClient)
+    provider = GeminiReviewAnalysisProvider("server-only-test-key", "gemini-test")
+    with pytest.raises(AIProviderError, match="invalid structured output"):
+        provider.analyze("sanitized", [], [])
+
+
+def test_provider_factory_constructs_gemini_from_backend_settings() -> None:
+    configured = Settings(
+        ai_provider=" GEMINI ",
+        gemini_api_key="server-only-test-key",
+        gemini_model="gemini-test",
+        gemini_model_version="gemini-version",
+    )
+    provider = ai_provider.create_analysis_provider(configured)
+
+    assert isinstance(provider, GeminiReviewAnalysisProvider)
+    assert provider.provider_name == "gemini"
+    assert provider.model_name == "gemini-test"
+    assert provider._configured_model_version == "gemini-version"
+
+
+def test_gemini_adapter_maps_provider_errors_without_exposing_details(monkeypatch) -> None:
+    secret_detail = "upstream message must not reach logs or users"
+
+    class FakeInteractions:
+        def create(self, **kwargs: Any) -> SimpleNamespace:
+            assert kwargs["input"]
+            raise ai_provider.APIError(500, {"message": secret_detail})
+
+    class FakeClient:
+        def __init__(self, *, api_key: str) -> None:
+            assert api_key == "server-only-test-key"
+            self.interactions = FakeInteractions()
+
+    monkeypatch.setattr(ai_provider.genai, "Client", FakeClient)
+    provider = GeminiReviewAnalysisProvider("server-only-test-key", "gemini-test")
+    with pytest.raises(AIProviderError, match="Gemini provider request failed") as error:
+        provider.analyze("sanitized", [], [])
+    assert secret_detail not in str(error.value)
 
 
 def test_pii_protection_redacts_email_phone_url_ssn_and_street_address() -> None:
@@ -269,7 +329,7 @@ def test_successful_analysis_stores_multiple_topics_complaints_and_model_version
     assert analysis.complaints[0].severity == "high"
     assert analysis.complaints[0].confidence == 0.88
     assert saved["model_version_id"] == "model-version-2"
-    assert ("openai", "gpt-4o-mini", "gpt-4o-mini-2026-10-01") in repository.model_versions
+    assert ("gemini", "gemini-test", "gemini-test-version") in repository.model_versions
     assert "jane.person@example.com" not in provider.calls[0]["text"]
     assert "+1 (415) 555-0123" not in provider.calls[0]["text"]
     assert "https://example.com/profile/jane" not in provider.calls[0]["text"]

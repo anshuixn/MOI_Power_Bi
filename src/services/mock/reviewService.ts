@@ -2,7 +2,7 @@
 // ReviewBand Mock Review Service
 // ============================================================
 
-import type { Result, FilterState, Review, SentimentLabel } from '@/types'
+import type { Result, FilterState, Review } from '@/types'
 import type { IReviewService, ReviewFilterOptions, PaginatedResult } from '@/services/contracts'
 import { REVIEWS } from '@/data/mockData'
 
@@ -40,7 +40,7 @@ export class MockReviewService implements IReviewService {
 
     // Apply sentiment filter
     if (options.sentiment) {
-      items = items.filter(r => r.sentiment.label === (options.sentiment as SentimentLabel))
+      items = items.filter(r => r.sentiment?.label === options.sentiment)
     }
 
     // Apply rating filter
@@ -60,7 +60,9 @@ export class MockReviewService implements IReviewService {
       let cmp = 0
       if (sortBy === 'date') cmp = a.date.localeCompare(b.date)
       else if (sortBy === 'rating') cmp = a.rating - b.rating
-      else if (sortBy === 'confidence') cmp = a.sentiment.confidence - b.sentiment.confidence
+      else if (sortBy === 'confidence') {
+        cmp = (a.sentiment?.confidence ?? 0) - (b.sentiment?.confidence ?? 0)
+      }
       return sortOrder === 'desc' ? -cmp : cmp
     })
 

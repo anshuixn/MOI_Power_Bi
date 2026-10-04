@@ -27,6 +27,9 @@ export interface FilterState {
   customDateEnd?: string
   productId: string | null   // null = "All Products"
   source: ReviewSource | null // null = "All Sources"
+  sentiment?: SentimentLabel | null
+  topicId?: string | null
+  complaintId?: string | null
 }
 
 // ── PII Status ───────────────────────────────────────────────
@@ -90,15 +93,15 @@ export interface Review {
   id: string
   text: string
   rating: number         // 1–5
-  productId: string
+  productId: string | null
   productName: string
   source: ReviewSource
   date: string           // ISO
-  authorInitial: string  // single capital letter
-  sentiment: SentimentScore
+  authorInitial: string | null  // single capital letter
+  sentiment: SentimentScore | null
   topicIds: string[]
   complaintId: string | null
-  piiStatus: PIIStatus
+  piiStatus: PIIStatus | null
 }
 
 // ── Complaint ────────────────────────────────────────────────
@@ -112,6 +115,9 @@ export interface Complaint {
   description: string
   exampleReviewIds: string[]
   status: 'open' | 'investigating' | 'resolved'
+  mentions?: number
+  affectedProducts?: { id: string; name: string; mentions: number }[]
+  affectedTopics?: { id: string; name: string; mentions: number }[]
 }
 
 // ── Insight ──────────────────────────────────────────────────
@@ -204,10 +210,22 @@ export interface AnalyticsSummary {
   complaints: Complaint[]
   recentInsights: Insight[]
   spotlightReview: Review | null
-  modelHealth: ModelHealth
+  modelHealth: ModelHealth | null
   ratingDistribution: Record<1 | 2 | 3 | 4 | 5, number>
   sourceBreakdown: Record<ReviewSource, number>
   productBreakdown: Record<string, number>
+  reviewVolume?: { date: string; reviewCount: number }[]
+  productComparison?: {
+    productId: string
+    productName: string
+    reviewCount: number
+    averageRating: number
+  }[]
+  sourceComparison?: {
+    source: ReviewSource
+    reviewCount: number
+    averageRating: number
+  }[]
 }
 
 // ── App Settings ──────────────────────────────────────────────

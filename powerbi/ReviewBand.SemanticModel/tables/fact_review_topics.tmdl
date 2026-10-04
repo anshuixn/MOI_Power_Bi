@@ -1,0 +1,90 @@
+table fact_review_topics
+	column organization_id
+		dataType: string
+		sourceColumn: organization_id
+		summarizeBy: none
+	column review_id
+		dataType: string
+		sourceColumn: review_id
+		summarizeBy: none
+	column topic_id
+		dataType: string
+		sourceColumn: topic_id
+		summarizeBy: none
+	column date_key
+		dataType: dateTime
+		sourceColumn: date_key
+		summarizeBy: none
+	column product_id
+		dataType: string
+		sourceColumn: product_id
+		summarizeBy: none
+	column source_id
+		dataType: string
+		sourceColumn: source_id
+		summarizeBy: none
+	column rating
+		dataType: int64
+		sourceColumn: rating
+		summarizeBy: none
+	column sentiment
+		dataType: string
+		sourceColumn: sentiment
+		summarizeBy: none
+	column topic_confidence
+		dataType: decimal
+		sourceColumn: topic_confidence
+		summarizeBy: none
+	measure 'Topic Mentions' =
+			VAR ComplaintIsFiltered = ISCROSSFILTERED ( dim_complaints[complaint_id] )
+			VAR ComplaintReviewIds = VALUES ( fact_review_complaints[review_id] )
+			RETURN
+				IF (
+					ComplaintIsFiltered,
+					CALCULATE (
+						COUNTROWS ( fact_review_topics ),
+						KEEPFILTERS (
+							TREATAS ( ComplaintReviewIds, fact_review_topics[review_id] )
+						)
+					),
+					COUNTROWS ( fact_review_topics )
+				)
+		formatString: #,0
+	measure 'Topic Reviews' =
+			VAR ComplaintIsFiltered = ISCROSSFILTERED ( dim_complaints[complaint_id] )
+			VAR ComplaintReviewIds = VALUES ( fact_review_complaints[review_id] )
+			RETURN
+				IF (
+					ComplaintIsFiltered,
+					CALCULATE (
+						DISTINCTCOUNT ( fact_review_topics[review_id] ),
+						KEEPFILTERS (
+							TREATAS ( ComplaintReviewIds, fact_review_topics[review_id] )
+						)
+					),
+					DISTINCTCOUNT ( fact_review_topics[review_id] )
+				)
+		formatString: #,0
+	measure 'Topic Count' =
+			VAR ComplaintIsFiltered = ISCROSSFILTERED ( dim_complaints[complaint_id] )
+			VAR ComplaintReviewIds = VALUES ( fact_review_complaints[review_id] )
+			RETURN
+				IF (
+					ComplaintIsFiltered,
+					CALCULATE (
+						DISTINCTCOUNT ( fact_review_topics[topic_id] ),
+						KEEPFILTERS (
+							TREATAS ( ComplaintReviewIds, fact_review_topics[review_id] )
+						)
+					),
+					DISTINCTCOUNT ( fact_review_topics[topic_id] )
+				)
+		formatString: #,0
+	partition fact_review_topics = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="fact_review_topics"]}[Data]
+			in
+				View

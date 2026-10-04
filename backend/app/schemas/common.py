@@ -7,6 +7,18 @@ from pydantic import BaseModel, ConfigDict
 T = TypeVar("T")
 
 
+def to_camel(value: str) -> str:
+    first, *rest = value.split("_")
+    return first + "".join(word.capitalize() for word in rest)
+
+
+class APIModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+
 class Result(BaseModel, Generic[T]):
     status: Literal["success", "error", "loading", "empty"]
     data: T | None = None
@@ -25,7 +37,7 @@ class FilterState(BaseModel):
     source: str | None = None
 
 
-class PaginatedResult(BaseModel, Generic[T]):
+class PaginatedResult(APIModel, Generic[T]):
     items: list[T]
     total: int
     page: int = 1

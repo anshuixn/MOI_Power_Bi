@@ -1,0 +1,142 @@
+// TMDL relationship definitions. Keep filtering single-direction from dimensions
+// into facts; review-topic/complaint links stay disconnected from fact_reviews.
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b01
+	fromColumn: fact_reviews.product_id
+	toColumn: dim_products.product_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b02
+	fromColumn: fact_reviews.source_id
+	toColumn: dim_sources.source_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b03
+	fromColumn: fact_reviews.date_key
+	toColumn: dim_dates.date_key
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b04
+	fromColumn: fact_reviews.rating
+	toColumn: dim_ratings.rating
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b05
+	fromColumn: fact_reviews.sentiment
+	toColumn: dim_sentiments.sentiment
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b06
+	fromColumn: fact_review_topics.topic_id
+	toColumn: dim_topics.topic_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b07
+	fromColumn: fact_review_topics.product_id
+	toColumn: dim_products.product_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b08
+	fromColumn: fact_review_topics.source_id
+	toColumn: dim_sources.source_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b09
+	fromColumn: fact_review_topics.date_key
+	toColumn: dim_dates.date_key
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b10
+	fromColumn: fact_review_topics.rating
+	toColumn: dim_ratings.rating
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b11
+	fromColumn: fact_review_topics.sentiment
+	toColumn: dim_sentiments.sentiment
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b12
+	fromColumn: fact_review_complaints.complaint_id
+	toColumn: dim_complaints.complaint_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b13
+	fromColumn: fact_review_complaints.product_id
+	toColumn: dim_products.product_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b14
+	fromColumn: fact_review_complaints.source_id
+	toColumn: dim_sources.source_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b15
+	fromColumn: fact_review_complaints.date_key
+	toColumn: dim_dates.date_key
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b16
+	fromColumn: fact_review_complaints.rating
+	toColumn: dim_ratings.rating
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b17
+	fromColumn: fact_review_complaints.sentiment
+	toColumn: dim_sentiments.sentiment
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b18
+	fromColumn: fact_model_attempts.date_key
+	toColumn: dim_dates.date_key
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b19
+	fromColumn: fact_model_attempts.model_version_id
+	toColumn: dim_model_versions.model_version_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b20
+	fromColumn: fact_model_attempts.product_id
+	toColumn: dim_products.product_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b21
+	fromColumn: fact_model_attempts.source_id
+	toColumn: dim_sources.source_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b22
+	fromColumn: fact_model_attempts.sentiment
+	toColumn: dim_sentiments.sentiment
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b23
+	fromColumn: fact_model_topics.date_key
+	toColumn: dim_dates.date_key
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b24
+	fromColumn: fact_model_topics.model_version_id
+	toColumn: dim_model_versions.model_version_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b25
+	fromColumn: fact_model_topics.topic_id
+	toColumn: dim_topics.topic_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b26
+	fromColumn: fact_model_complaints.date_key
+	toColumn: dim_dates.date_key
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b27
+	fromColumn: fact_model_complaints.model_version_id
+	toColumn: dim_model_versions.model_version_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b28
+	fromColumn: fact_model_complaints.complaint_id
+	toColumn: dim_complaints.complaint_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b29
+	fromColumn: fact_model_confidences.date_key
+	toColumn: dim_dates.date_key
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b30
+	fromColumn: fact_model_confidences.model_version_id
+	toColumn: dim_model_versions.model_version_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b31
+	fromColumn: fact_insights.date_key
+	toColumn: dim_dates.date_key
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b32
+	fromColumn: fact_insights.topic_id
+	toColumn: dim_topics.topic_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b33
+	fromColumn: fact_insights.product_id
+	toColumn: dim_products.product_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b34
+	fromColumn: fact_insights.complaint_id
+	toColumn: dim_complaints.complaint_id
+
+relationship 7de074c0-1698-4b7d-98cf-4b742d7e2b35
+	fromColumn: bridge_insight_reviews.insight_id
+	toColumn: fact_insights.insight_id

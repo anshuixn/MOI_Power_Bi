@@ -1,0 +1,30 @@
+table dim_products
+	column organization_id
+		dataType: string
+		sourceColumn: organization_id
+		summarizeBy: none
+	column product_id
+		dataType: string
+		isKey
+		sourceColumn: product_id
+		summarizeBy: none
+	column product_name
+		dataType: string
+		sourceColumn: product_name
+		summarizeBy: none
+	column sku
+		dataType: string
+		sourceColumn: sku
+		summarizeBy: none
+	column category
+		dataType: string
+		sourceColumn: category
+		summarizeBy: none
+	partition dim_products = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="dim_products"]}[Data]
+			in
+				View

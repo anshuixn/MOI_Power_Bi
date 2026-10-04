@@ -13,7 +13,7 @@ def test_health_endpoint(client) -> None:
 
 
 def test_reviews_endpoint(client) -> None:
-    response = client.get("/reviews/?page=1&page_size=5")
+    response = client.get("/reviews/?page=1&pageSize=5")
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "success"
@@ -22,7 +22,7 @@ def test_reviews_endpoint(client) -> None:
 
 
 def test_versioned_reviews_and_not_found_error_contract(client) -> None:
-    response = client.get("/api/v1/reviews/?page=1&page_size=5")
+    response = client.get("/api/v1/reviews/?page=1&pageSize=5")
     assert response.status_code == 200
     assert response.json()["status"] == "success"
 
@@ -36,7 +36,7 @@ def test_versioned_reviews_and_not_found_error_contract(client) -> None:
 
 
 def test_validation_error_has_standard_response_shape(client) -> None:
-    response = client.get("/reviews/?page_size=0")
+    response = client.get("/reviews/?pageSize=0")
     assert response.status_code == 422
     payload = response.json()
     assert payload["status"] == "error"
@@ -50,8 +50,11 @@ def test_analytics_summary_endpoint(client) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "success"
-    assert payload["data"]["total_reviews"]["value"] > 0
+    assert payload["data"]["totalReviews"]["value"] > 0
     assert "sentiment" in payload["data"]
+    assert "reviewVolume" in payload["data"]
+    assert "positiveSentiment" in payload["data"]
+    assert "positive_sentiment" not in payload["data"]
 
 
 def test_insights_and_topics_endpoints(client) -> None:
@@ -81,15 +84,71 @@ def test_existing_catalog_routes_and_custom_date_validation(client) -> None:
     assert reversed_dates.json()["error"] == "dateEnd must be on or after dateStart"
 
 
+def test_analytics_and_catalog_filters_validate_and_paginate(client) -> None:
+    invalid_filter = client.get(
+        "/api/v1/analytics/summary?source=unknown-source"
+    )
+    assert invalid_filter.status_code == 422
+
+    invalid_product = client.get(
+        "/api/v1/topics/?productId=not-a-uuid"
+    )
+    assert invalid_product.status_code == 422
+
+    paginated = client.get(
+        "/api/v1/topics/product-quality/reviews?page=1&pageSize=1"
+    )
+    assert paginated.status_code == 200
+    data = paginated.json()["data"]
+    assert data["total"] == 4
+    assert len(data["items"]) == 1
+    assert data["pageSize"] == 1
+    assert data["pageCount"] == 4
+    topic = client.get("/api/v1/topics/").json()["data"][0]
+    assert "positivePct" in topic
+    assert "positive_pct" not in topic
+
+    complaint_reviews = client.get(
+        "/api/v1/complaints/late-delivery/reviews?pageSize=1"
+    )
+    assert complaint_reviews.status_code == 200
+    assert complaint_reviews.json()["data"]["total"] == 2
+    assert len(complaint_reviews.json()["data"]["items"]) == 1
+
+
+def test_insight_generation_and_model_health_require_organization_auth() -> None:
+    with TestClient(app) as unauthenticated_client:
+        headers = {
+            "X-Organization-ID": "11111111-1111-4111-8111-111111111111",
+        }
+        for path in (
+            "/api/v1/model-health/",
+            "/api/v1/insights/",
+        ):
+            response = unauthenticated_client.get(path, headers=headers)
+            assert response.status_code == 401
+        generated = unauthenticated_client.post(
+            "/api/v1/insights/generate",
+            headers=headers,
+        )
+        assert generated.status_code == 401
+
+
 def test_settings_read_environment_values(monkeypatch) -> None:
     monkeypatch.setenv("FRONTEND_URL", "https://reviewband.example")
     monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key-placeholder")
+    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", "test-publishable-key")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    monkeypatch.setenv("GEMINI_MODEL", "gemini-test")
 
     configured = Settings()
     assert configured.frontend_url == "https://reviewband.example"
     assert configured.supabase_url == "https://project.supabase.co"
-    assert configured.openai_api_key == "test-key-placeholder"
+    assert configured.supabase_anon_key == "test-publishable-key"
+    assert configured.supabase_service_role_key == "test-secret-key"
+    assert configured.gemini_api_key == "test-gemini-key"
+    assert configured.gemini_model == "gemini-test"
 
 
 def test_database_backed_routes_require_authentication() -> None:

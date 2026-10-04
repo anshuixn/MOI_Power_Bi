@@ -39,9 +39,11 @@ function Tag({ label }: { label: string }) {
 export function ReviewSpotlight({ review }: ReviewSpotlightProps) {
   if (!review) return null
 
-  const sentiment = review.sentiment.label
+  const sentiment = review.sentiment?.label
   const tags = [
-    sentiment.charAt(0).toUpperCase() + sentiment.slice(1),
+    sentiment
+      ? sentiment.charAt(0).toUpperCase() + sentiment.slice(1)
+      : 'Analysis pending',
     'Delivery',
     'Packaging',
   ]
@@ -98,7 +100,9 @@ export function ReviewSpotlight({ review }: ReviewSpotlightProps) {
             borderRadius: 999,
           }}
         >
-          Confidence {Math.round(review.sentiment.confidence * 100)}%
+          {review.sentiment
+            ? `Confidence ${Math.round(review.sentiment.confidence * 100)}%`
+            : 'Analysis pending'}
         </span>
       </div>
     </div>

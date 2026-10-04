@@ -1,0 +1,45 @@
+table fact_model_confidences
+	column organization_id
+		dataType: string
+		sourceColumn: organization_id
+		summarizeBy: none
+	column model_metric_id
+		dataType: string
+		sourceColumn: model_metric_id
+		summarizeBy: none
+	column review_id
+		dataType: string
+		sourceColumn: review_id
+		summarizeBy: none
+	column date_key
+		dataType: dateTime
+		sourceColumn: date_key
+		summarizeBy: none
+	column model_version_id
+		dataType: string
+		sourceColumn: model_version_id
+		summarizeBy: none
+	column classification_type
+		dataType: string
+		sourceColumn: classification_type
+		summarizeBy: none
+	column classification_id
+		dataType: string
+		sourceColumn: classification_id
+		summarizeBy: none
+	column confidence
+		dataType: decimal
+		sourceColumn: confidence
+		summarizeBy: none
+	measure 'Confidence Samples' = COUNTROWS ( fact_model_confidences )
+		formatString: #,0
+	measure 'Average Confidence' = AVERAGE ( fact_model_confidences[confidence] )
+		formatString: 0.0%
+	partition fact_model_confidences = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="fact_model_confidences"]}[Data]
+			in
+				View

@@ -1,0 +1,38 @@
+table dim_complaints
+	column organization_id
+		dataType: string
+		sourceColumn: organization_id
+		summarizeBy: none
+	column complaint_id
+		dataType: string
+		isKey
+		sourceColumn: complaint_id
+		summarizeBy: none
+	column complaint_code
+		dataType: string
+		sourceColumn: complaint_code
+		summarizeBy: none
+	column complaint_category
+		dataType: string
+		sourceColumn: complaint_category
+		summarizeBy: none
+	column severity
+		dataType: string
+		sourceColumn: severity
+		summarizeBy: none
+	column status
+		dataType: string
+		sourceColumn: status
+		summarizeBy: none
+	column description
+		dataType: string
+		sourceColumn: description
+		summarizeBy: none
+	partition dim_complaints = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="dim_complaints"]}[Data]
+			in
+				View

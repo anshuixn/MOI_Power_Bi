@@ -1,0 +1,21 @@
+table bridge_insight_reviews
+	column organization_id
+		dataType: string
+		sourceColumn: organization_id
+		summarizeBy: none
+	column insight_id
+		dataType: string
+		sourceColumn: insight_id
+		summarizeBy: none
+	column review_id
+		dataType: string
+		sourceColumn: review_id
+		summarizeBy: none
+	partition bridge_insight_reviews = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database(PbiServer, PbiDatabase, [CreateNavigationProperties=false]),
+				View = Source{[Schema="reviewband_bi", Item="bridge_insight_reviews"]}[Data]
+			in
+				View
