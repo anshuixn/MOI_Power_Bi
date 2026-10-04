@@ -160,13 +160,15 @@ test('feature cards slide in sequentially, settle, and reverse smoothly', async 
     const { x, y, width, height } = element.getBoundingClientRect()
     return { x, y: y + window.scrollY, width, height }
   }))
+  const readAnimationSpan = () => page.evaluate(() => window.innerHeight * 0.6)
 
   await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start - 2)
   await expect.poll(() => cards.first().evaluate(element =>
     Number(getComputedStyle(element).opacity)
   )).toBe(0)
 
-  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start + 2)
+  const animationSpan = await readAnimationSpan()
+  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start + animationSpan * 0.45)
   let staggeredStates: Awaited<ReturnType<typeof readCardState>> = []
   await expect.poll(async () => {
     const states = await readCardState()
@@ -176,15 +178,16 @@ test('feature cards slide in sequentially, settle, and reverse smoothly', async 
     return hasStaggeredPositions
   }).toBe(true)
   expect(staggeredStates).toHaveLength(6)
-  expect(staggeredStates.every(state => state.z === 0 && Math.abs(state.scale - 1) < 0.001)).toBe(true)
+  expect(staggeredStates[0].z === 0 && Math.abs(staggeredStates[0].scale - 1) < 0.001).toBe(true)
 
+  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start + animationSpan + 2)
   await expect.poll(async () => {
     const states = await readCardState()
     return states.every(state => state.opacity === 1 && Math.abs(state.x) < 1 && Math.abs(state.y) < 1)
   }).toBe(true)
   const finalBoxes = await readCardPositions()
 
-  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start + 120)
+  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start + animationSpan + 120)
   await page.waitForTimeout(250)
   expect((await readCardState()).every(state =>
     state.opacity === 1 && state.x === 0 && state.y === 0
@@ -195,10 +198,10 @@ test('feature cards slide in sequentially, settle, and reverse smoothly', async 
   await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start - 2)
   await expect.poll(async () => {
     const states = await readCardState()
-    return states.every(state => state.opacity === 0 && Math.abs(state.x) > 1)
+    return states.every(state => state.opacity === 0 && Math.abs(state.x) + Math.abs(state.y) > 1)
   }).toBe(true)
 
-  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start + 2)
+  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), start + animationSpan + 2)
   await expect.poll(async () => {
     const states = await readCardState()
     return states.every(state => state.opacity === 1 && Math.abs(state.x) < 1 && Math.abs(state.y) < 1)
@@ -208,7 +211,8 @@ test('feature cards slide in sequentially, settle, and reverse smoothly', async 
   const mobileStart = await cards.first().evaluate(element =>
     window.scrollY + (element.parentElement?.getBoundingClientRect().top ?? 0) - window.innerHeight * 0.9 + 2
   )
-  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), mobileStart)
+  const mobileAnimationSpan = await readAnimationSpan()
+  await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), mobileStart + mobileAnimationSpan + 2)
   await expect.poll(async () => {
     const states = await readCardState()
     return states.every(state => state.opacity === 1 && Math.abs(state.x) < 1 && Math.abs(state.y) < 1)

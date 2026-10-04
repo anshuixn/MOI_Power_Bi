@@ -40,3 +40,4 @@ __pycache__/
 backend/.venv/
 backend/venv/
 backend/.env
+.vercel
