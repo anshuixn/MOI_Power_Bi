@@ -394,6 +394,7 @@ body::after {
     max-width: calc(100vw - 32px);
     z-index: var(--z-modal);
     box-shadow: 0 20px 60px rgba(28, 16, 51, 0.22);
+    pointer-events: auto;
   }
 
   .review-empty-state {

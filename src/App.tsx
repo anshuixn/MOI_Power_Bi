@@ -44,7 +44,9 @@ function AppRouter() {
     return <Navigate to="/dashboard" replace />
   }
 
-  if (!isAuthRoute && !['/'].includes(location.pathname) && (!isConfigured || !isAuthenticated)) {
+  const shouldRequireAuth = isConfigured && !isAuthenticated && !isAuthRoute && !['/'].includes(location.pathname)
+
+  if (shouldRequireAuth) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 

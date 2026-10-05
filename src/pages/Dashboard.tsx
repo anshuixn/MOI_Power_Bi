@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import {
@@ -129,6 +130,7 @@ function EmptyState() {
 
 /* ── Main Dashboard ────────────────────────────────────────── */
 export function Dashboard() {
+  const navigate = useNavigate()
   const { filters, prefersReducedMotion } = useApp()
   const analytics = useAnalytics(filters)
   const status = analytics.status
@@ -263,6 +265,9 @@ export function Dashboard() {
             </p>
           </div>
           <button
+            type="button"
+            aria-label="Open AI insights"
+            onClick={() => navigate('/ai-insights')}
             style={{
               alignSelf: 'center',
               width: 28, height: 28, borderRadius: '50%',
@@ -365,6 +370,9 @@ export function Dashboard() {
                 subtitle="Most discussed topics in reviews"
                 action={
                   <button
+                    type="button"
+                    onClick={() => navigate('/topics')}
+                    aria-label="View all customer topics"
                     style={{
                       fontSize: 12, fontWeight: 600, color: '#7C3AED',
                       background: 'none', border: 'none', cursor: 'pointer',
@@ -434,6 +442,8 @@ export function Dashboard() {
                 title="Recent AI Insights"
                 action={
                   <button
+                    type="button"
+                    onClick={() => navigate('/ai-insights')}
                     style={{
                       fontSize: 12, fontWeight: 600, color: '#7C3AED',
                       background: 'none', border: 'none', cursor: 'pointer',

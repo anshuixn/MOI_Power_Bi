@@ -14,6 +14,8 @@ gsap.registerPlugin(useGSAP)
 interface TooltipData {
   x: number
   y: number
+  xPx: number
+  yPx: number
   datum: SentimentDataPoint
   idx: number
 }
@@ -119,11 +121,23 @@ export function SentimentTrendChart({ data, width = 600, height = 200 }: Sentime
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     const rect = svgRef.current?.getBoundingClientRect()
     if (!rect) return
-    const relX = e.clientX - rect.left - PADDING.left
-    const idx = Math.min(Math.max(Math.round((relX / W) * (data.length - 1)), 0), data.length - 1)
+
+    const pointerX = Math.min(Math.max(e.clientX - rect.left, 0), rect.width)
+    const pointerY = Math.min(Math.max(e.clientY - rect.top, 0), rect.height)
+
+    const xInSvg = (pointerX / rect.width) * width
+    const xWithinPlot = Math.min(Math.max(xInSvg, PADDING.left), PADDING.left + W)
+    const ratio = (xWithinPlot - PADDING.left) / W
+    const idx = Math.min(Math.max(Math.round(ratio * (data.length - 1)), 0), data.length - 1)
     const datum = data[idx]
-    setTooltip({ x: xScale(idx), y: e.clientY - rect.top - 10, datum, idx })
-  }, [data, W, xScale])
+
+    const x = xScale(idx)
+    const y = Math.min(Math.max((pointerY / rect.height) * height, 12), height - 78)
+    const tooltipX = Math.min(Math.max(pointerX, 72), rect.width - 72)
+    const tooltipY = Math.min(Math.max(pointerY - 88, 12), rect.height - 110)
+
+    setTooltip({ x, y, xPx: tooltipX, yPx: tooltipY, datum, idx })
+  }, [data, W, height, width, xScale])
 
   // Active hover dot y positions
   const activeDots = tooltip ? [
@@ -241,8 +255,8 @@ export function SentimentTrendChart({ data, width = 600, height = 200 }: Sentime
           aria-live="polite"
           style={{
             position: 'absolute',
-            left: Math.min(tooltip.x, width - 160),
-            top: Math.max(8, tooltip.y - 90),
+            left: Math.min(Math.max(tooltip.xPx - 70, 12), (svgRef.current?.clientWidth ?? width) - 160),
+            top: Math.min(Math.max(tooltip.yPx, 12), Math.max(12, (svgRef.current?.clientHeight ?? height) - 120)),
             background: 'rgba(255,255,255,0.94)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',

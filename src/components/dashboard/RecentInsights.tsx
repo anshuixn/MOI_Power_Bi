@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { TrendingUp, AlertTriangle, Lightbulb, ChevronRight } from 'lucide-react'
 import type { Insight } from '@/types'
 
@@ -11,6 +12,7 @@ interface RecentInsightsProps {
 }
 
 export function RecentInsights({ insights }: RecentInsightsProps) {
+  const navigate = useNavigate()
   const display = insights.slice(0, 2)
   // eslint-disable-next-line -- Date.now() is a snapshot, intentionally run once
   const now = useMemo(() => Date.now(), [])
@@ -100,6 +102,9 @@ export function RecentInsights({ insights }: RecentInsightsProps) {
                 {timeLabel}
               </span>
               <button
+                type="button"
+                aria-label={`Open insight ${insight.id}`}
+                onClick={() => navigate('/ai-insights')}
                 style={{
                   width: 26,
                   height: 26,
