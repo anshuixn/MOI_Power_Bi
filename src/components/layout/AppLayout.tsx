@@ -24,7 +24,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const isDesktop = useMediaQuery('(min-width: 1024px)')
   const location = useLocation()
   const isLanding = location.pathname === '/'
-  const isAuthPage = location.pathname === '/login'
+  const isAuthPage = ['/login', '/signup'].includes(location.pathname)
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative' }}>
