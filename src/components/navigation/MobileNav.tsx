@@ -4,13 +4,18 @@
 
 import { NavLink } from 'react-router-dom'
 import { useState } from 'react'
-import { LayoutDashboard, MessageSquare, BarChart3, Sparkles, MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal } from 'lucide-react'
+
+import dashboardIcon from '@/assets/icons/nav_dashboard.png'
+import reviewsIcon from '@/assets/icons/nav_reviews.png'
+import analyticsIcon from '@/assets/icons/nav_analytics.png'
+import aiInsightsIcon from '@/assets/icons/nav_ai_insights.png'
 
 const MOBILE_NAV = [
-  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-  { label: 'Reviews', to: '/reviews', icon: MessageSquare },
-  { label: 'Analytics', to: '/analytics', icon: BarChart3 },
-  { label: 'Insights', to: '/ai-insights', icon: Sparkles },
+  { label: 'Dashboard', to: '/dashboard', icon: dashboardIcon },
+  { label: 'Reviews', to: '/reviews', icon: reviewsIcon },
+  { label: 'Analytics', to: '/analytics', icon: analyticsIcon },
+  { label: 'Insights', to: '/ai-insights', icon: aiInsightsIcon },
 ]
 
 const MORE_LINKS = [
@@ -100,7 +105,6 @@ export function MobileNav() {
             style={{ flex: 1, textDecoration: 'none' }}
           >
             {({ isActive }) => {
-              const Icon = item.icon
               return (
                 <div
                   style={{
@@ -112,7 +116,18 @@ export function MobileNav() {
                     color: isActive ? '#7C3AED' : '#6B7280',
                   }}
                 >
-                  <Icon size={20} strokeWidth={isActive ? 2 : 1.75} />
+                  <img
+                    src={item.icon}
+                    alt={item.label}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      objectFit: 'contain',
+                      display: 'block',
+                      opacity: isActive ? 1 : 0.45,
+                      transition: 'opacity 0.2s ease',
+                    }}
+                  />
                   <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>
                     {item.label}
                   </span>

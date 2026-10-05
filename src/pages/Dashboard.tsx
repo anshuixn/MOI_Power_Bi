@@ -6,7 +6,7 @@ import { useRef } from 'react'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import {
-  MessageSquare, Star, Smile, Meh, Frown, AlertTriangle,
+  MessageSquare,
   Activity, Sparkles, ChevronRight, TrendingUp, ArrowUpRight,
 } from 'lucide-react'
 
@@ -18,6 +18,13 @@ import { SentimentDistributionChart } from '@/components/charts/SentimentDistrib
 import { TopTopicsChart } from '@/components/charts/TopTopicsChart'
 import { RecentInsights } from '@/components/dashboard/RecentInsights'
 import { ReviewSpotlight } from '@/components/dashboard/ReviewSpotlight'
+
+import kpiTotalReviews from '@/assets/icons/kpi_total_reviews.png'
+import kpiAverageRating from '@/assets/icons/kpi_average_rating.png'
+import kpiActiveComplaints from '@/assets/icons/kpi_active_complaints.png'
+import kpiPositive from '@/assets/icons/kpi_positive.png'
+import kpiNeutral from '@/assets/icons/kpi_neutral.png'
+import kpiNegative from '@/assets/icons/kpi_negative.png'
 
 gsap.registerPlugin(useGSAP)
 
@@ -290,12 +297,12 @@ export function Dashboard() {
           <EmptyState />
         ) : (
           <>
-            <div className="kpi-card"><KPICardComponent kpi={data.totalReviews}      color="#7C3AED" icon={MessageSquare} /></div>
-            <div className="kpi-card"><KPICardComponent kpi={data.averageRating}     color="#10B981" icon={Star} /></div>
-            <div className="kpi-card"><KPICardComponent kpi={data.activeComplaints}  color="#F87171" icon={AlertTriangle} /></div>
-            <div className="kpi-card"><KPICardComponent kpi={data.positiveSentiment} color="#10B981" icon={Smile} /></div>
-            <div className="kpi-card"><KPICardComponent kpi={data.neutralSentiment}  color="#C4B5FD" icon={Meh} /></div>
-            <div className="kpi-card"><KPICardComponent kpi={data.negativeSentiment} color="#F87171" icon={Frown} /></div>
+            <div className="kpi-card"><KPICardComponent kpi={data.totalReviews}      color="#7C3AED" icon={kpiTotalReviews} /></div>
+            <div className="kpi-card"><KPICardComponent kpi={data.averageRating}     color="#10B981" icon={kpiAverageRating} /></div>
+            <div className="kpi-card"><KPICardComponent kpi={data.activeComplaints}  color="#F87171" icon={kpiActiveComplaints} /></div>
+            <div className="kpi-card"><KPICardComponent kpi={data.positiveSentiment} color="#10B981" icon={kpiPositive} /></div>
+            <div className="kpi-card"><KPICardComponent kpi={data.neutralSentiment}  color="#C4B5FD" icon={kpiNeutral} /></div>
+            <div className="kpi-card"><KPICardComponent kpi={data.negativeSentiment} color="#F87171" icon={kpiNegative} /></div>
           </>
         )}
       </div>

@@ -171,7 +171,20 @@ export function KPICardComponent({ kpi, color = '#7C3AED', icon: Icon }: KPICard
                 ...(hovered ? { background: `${color}28` } : {}),
               }}
             >
-              <Icon size={15} strokeWidth={1.75} style={{ color }} />
+              {typeof Icon === 'string' ? (
+                <img
+                  src={Icon}
+                  alt=""
+                  style={{
+                    width: 20,
+                    height: 20,
+                    objectFit: 'contain',
+                    display: 'block',
+                  }}
+                />
+              ) : (
+                <Icon size={15} strokeWidth={1.75} style={{ color }} />
+              )}
             </div>
           )}
           <span style={{ fontSize: 12, fontWeight: 500, color: '#8B83A3' }}>

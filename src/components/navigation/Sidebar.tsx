@@ -4,19 +4,7 @@
 
 import { useState, useRef } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import {
-  LayoutDashboard,
-  MessageSquare,
-  BarChart3,
-  Tag,
-  AlertTriangle,
-  Sparkles,
-  FileText,
-  Settings,
-  ChevronRight,
-  Activity,
-  PlayCircle
-} from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { ReviewBandLogo } from './Logo'
@@ -31,17 +19,28 @@ interface NavItem {
   badge?: string
 }
 
+import introIcon from '@/assets/icons/nav_intro.png'
+import dashboardIcon from '@/assets/icons/nav_dashboard.png'
+import reviewsIcon from '@/assets/icons/nav_reviews.png'
+import analyticsIcon from '@/assets/icons/nav_analytics.png'
+import topicsIcon from '@/assets/icons/nav_topics.png'
+import complaintsIcon from '@/assets/icons/nav_complaints.png'
+import aiInsightsIcon from '@/assets/icons/nav_ai_insights.png'
+import modelHealthIcon from '@/assets/icons/nav_model_health.png'
+import reportsIcon from '@/assets/icons/nav_reports.png'
+import settingsIcon from '@/assets/icons/nav_settings.png'
+
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Intro',       to: '/',            icon: PlayCircle },
-  { label: 'Dashboard',   to: '/dashboard',   icon: LayoutDashboard },
-  { label: 'Reviews',     to: '/reviews',     icon: MessageSquare },
-  { label: 'Analytics',   to: '/analytics',   icon: BarChart3 },
-  { label: 'Topics',      to: '/topics',      icon: Tag },
-  { label: 'Complaints',  to: '/complaints',  icon: AlertTriangle, badge: '342' },
-  { label: 'AI Insights', to: '/ai-insights', icon: Sparkles, badge: '2' },
-  { label: 'Model Health',to: '/model-health',icon: Activity },
-  { label: 'Reports',     to: '/reports',     icon: FileText },
-  { label: 'Settings',    to: '/settings',    icon: Settings },
+  { label: 'Intro',       to: '/',            icon: introIcon },
+  { label: 'Dashboard',   to: '/dashboard',   icon: dashboardIcon },
+  { label: 'Reviews',     to: '/reviews',     icon: reviewsIcon },
+  { label: 'Analytics',   to: '/analytics',   icon: analyticsIcon },
+  { label: 'Topics',      to: '/topics',      icon: topicsIcon },
+  { label: 'Complaints',  to: '/complaints',  icon: complaintsIcon, badge: '342' },
+  { label: 'AI Insights', to: '/ai-insights', icon: aiInsightsIcon, badge: '2' },
+  { label: 'Model Health',to: '/model-health',icon: modelHealthIcon },
+  { label: 'Reports',     to: '/reports',     icon: reportsIcon },
+  { label: 'Settings',    to: '/settings',    icon: settingsIcon },
 ]
 
 function NavItemComponent({ item }: { item: NavItem }) {
@@ -49,7 +48,7 @@ function NavItemComponent({ item }: { item: NavItem }) {
   const isActive = item.to === '/'
     ? location.pathname === '/'
     : location.pathname.startsWith(item.to)
-  const Icon = item.icon
+  const iconSrc = item.icon
   const itemRef = useRef<HTMLDivElement>(null)
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -128,7 +127,18 @@ function NavItemComponent({ item }: { item: NavItem }) {
             flexShrink: 0,
           }}
         >
-          <Icon size={16} strokeWidth={isActive ? 2 : 1.75} />
+          <img
+            src={iconSrc}
+            alt={`${item.label} icon`}
+            style={{
+              width: 18,
+              height: 18,
+              objectFit: 'contain',
+              display: 'block',
+              opacity: isActive ? 1 : 0.5,
+              transition: 'opacity 0.2s ease',
+            }}
+          />
         </div>
 
         <span style={{ flex: 1 }}>{item.label}</span>

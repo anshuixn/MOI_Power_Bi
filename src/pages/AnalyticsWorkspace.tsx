@@ -3,12 +3,13 @@
 // ============================================================
 
 import { useState, useEffect } from 'react'
-import { BarChart3, PieChart, Star } from 'lucide-react'
+import { PieChart, Star } from 'lucide-react'
 import { analyticsService } from '@/services/mock/analyticsService'
 import { useApp } from '@/hooks/useApp'
 import type { AnalyticsSummary } from '@/types'
 import { RatingDistributionChart } from '@/components/charts/RatingDistributionChart'
 import { SourceDonutChart } from '@/components/charts/SourceDonutChart'
+import volumeHeatmapImg from '@/assets/icons/analytics_heatmap.png'
 
 export function AnalyticsWorkspace() {
   const { filters } = useApp()
@@ -91,13 +92,8 @@ export function AnalyticsWorkspace() {
         </div>
       </div>
       
-      <div className="glass-card" style={{ padding: 24, minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(124,58,237,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-             <BarChart3 size={24} style={{ color: '#A855F7' }} />
-          </div>
-          <p style={{ color: '#8B83A3' }}>Volume Heatmap Coming in Next Phase</p>
-        </div>
+      <div className="glass-card" style={{ padding: 24, minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        <img src={volumeHeatmapImg} alt="Volume Heatmap" style={{ width: '100%', height: 'auto', objectFit: 'contain', borderRadius: 8 }} />
       </div>
     </div>
   )

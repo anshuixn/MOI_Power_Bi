@@ -1,12 +1,17 @@
 import { useState } from 'react'
-import { FileText, Download, Loader, CheckCircle, Calendar, BarChart3, AlertCircle, Briefcase } from 'lucide-react'
+import { FileText, Download, Loader, CheckCircle, Calendar } from 'lucide-react'
+
+import report1 from '@/assets/icons/report_monthly.png'
+import report2 from '@/assets/icons/report_complaints.png'
+import report3 from '@/assets/icons/report_topics.png'
+import report4 from '@/assets/icons/report_executive.png'
 
 const REPORT_TEMPLATES = [
   {
     id: 'monthly-sentiment',
     title: 'Monthly Sentiment Summary',
     description: 'Comprehensive overview of sentiment trends, score breakdowns, and key shifts over the past 30 days.',
-    icon: BarChart3,
+    icon: report1,
     color: '#7C3AED',
     bg: 'rgba(124,58,237,0.08)',
     lastGenerated: '2026-09-30',
@@ -15,7 +20,7 @@ const REPORT_TEMPLATES = [
     id: 'complaint-report',
     title: 'Complaint Intelligence Report',
     description: 'Detailed breakdown of active complaint clusters, severity distribution, and resolution progress.',
-    icon: AlertCircle,
+    icon: report2,
     color: '#F43F5E',
     bg: 'rgba(244,63,94,0.08)',
     lastGenerated: '2026-10-01',
@@ -24,7 +29,7 @@ const REPORT_TEMPLATES = [
     id: 'topic-analysis',
     title: 'Topic Analysis Deep Dive',
     description: 'Emerging and declining topic clusters across product lines with keyword extraction.',
-    icon: FileText,
+    icon: report3,
     color: '#3B82F6',
     bg: 'rgba(59,130,246,0.08)',
     lastGenerated: '2026-09-28',
@@ -33,7 +38,7 @@ const REPORT_TEMPLATES = [
     id: 'executive-brief',
     title: 'Executive Brief',
     description: 'High-level KPI summary formatted for stakeholder presentations. One-page overview.',
-    icon: Briefcase,
+    icon: report4,
     color: '#10B981',
     bg: 'rgba(16,185,129,0.08)',
     lastGenerated: '2026-10-02',
@@ -94,13 +99,12 @@ export function Reports() {
       {/* Templates */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20, marginBottom: 32 }}>
         {REPORT_TEMPLATES.map(template => {
-          const Icon = template.icon
           const isGenerating = generating === template.id
           const isDone = generated.has(template.id)
           return (
             <div key={template.id} className="glass-card" style={{ padding: 28, display: 'flex', flexDirection: 'column' }}>
               <div style={{ width: 44, height: 44, borderRadius: 12, background: template.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Icon size={20} style={{ color: template.color }} />
+                <img src={template.icon} alt="" style={{ width: 26, height: 26, objectFit: 'contain', display: 'block' }} />
               </div>
               <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1C1033', margin: '0 0 8px' }}>{template.title}</h3>
               <p style={{ fontSize: 13, color: '#8B83A3', lineHeight: 1.5, flex: 1, margin: '0 0 16px' }}>{template.description}</p>
