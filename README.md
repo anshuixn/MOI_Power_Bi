@@ -1,32 +1,42 @@
-# React + TypeScript + Vite
+# ReviewBand
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+ReviewBand is a React/Vite/TypeScript application with a FastAPI backend, Supabase PostgreSQL storage, and Gemini-based asynchronous review analysis. Power BI is a separate reporting client that reads tenant-scoped PostgreSQL analytics views; it does not connect through the browser or the application API.
 
-Currently, two official plugins are available:
+## Power BI
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The existing database reporting layer and semantic model are documented in [`powerbi/README.md`](./powerbi/README.md):
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```text
+Supabase PostgreSQL
+  → reviewband_bi tenant-scoped views
+  → dedicated read-only PostgreSQL login (one organization per login)
+  → PostgreSQL connector
+  → powerbi/ReviewBand.SemanticModel (TMDL, Import mode)
+  → report authored from powerbi/ReportPages.md
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The repository contains SQL migrations, TMDL semantic-model source, measure definitions, and a six-page report specification. It does not contain a PBIX/PBIP report or credentials. A published report, live connection, refresh schedule, and tenant-isolation runtime test must be verified in the target Power BI/Supabase environments; see the Power BI runbook for exact setup and reconciliation steps.
+
+Power BI credentials belong in the Power BI credential store. Application credentials belong in server-side configuration. Only the Supabase publishable key and project URL are used by the browser; never put database passwords, Supabase secret/service-role keys, or Gemini API keys in `VITE_*` variables or source control.
+
+## Local development
+
+Install frontend dependencies with `npm ci`, then start Vite with `npm run dev`. The backend dependencies are listed in [`backend/requirements.txt`](./backend/requirements.txt); configure server-only values using [`backend/.env.example`](./backend/.env.example) as a template. Do not commit actual `.env` files.
+
+The current React services under `src/services/mock/` use fixture data. This UI mock path is separate from Power BI's PostgreSQL reporting path and is not evidence of live reporting data.
+
+## Validation commands
+
+```sh
+npm run build
+npm run lint
+npm run test:e2e
+```
+
+Run backend tests from the `backend/` directory in the configured Python environment:
+
+```sh
+python -m pytest
+```
+
+Apply Supabase migrations in timestamp order using the deployment's migration tool and history. Do not reapply an already-applied migration; review [`supabase/migrations/README.md`](./supabase/migrations/README.md) and the SQL validation instructions before database work.

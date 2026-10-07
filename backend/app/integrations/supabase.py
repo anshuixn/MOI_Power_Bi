@@ -13,6 +13,7 @@ from app.core.config import Settings
 class OrganizationContext:
     user_id: UUID
     organization_id: UUID
+    membership_role: str
     client: Client
 
 

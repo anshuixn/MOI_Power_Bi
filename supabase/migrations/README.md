@@ -8,6 +8,7 @@ Apply migrations to the linked Supabase project's PostgreSQL 15+ database in ver
 4. `20261004002000_real_analytics_catalog.sql`
 5. `20261004003000_ai_insights_model_health.sql`
 6. `20261004004000_power_bi_analytics.sql`
+7. `20261006001000_admin_model_health_access.sql`
 
 For a direct PostgreSQL connection, run:
 
@@ -18,10 +19,11 @@ psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 \
   --file supabase/migrations/20261004001000_review_analysis_pipeline.sql \
   --file supabase/migrations/20261004002000_real_analytics_catalog.sql \
   --file supabase/migrations/20261004003000_ai_insights_model_health.sql \
-  --file supabase/migrations/20261004004000_power_bi_analytics.sql
+  --file supabase/migrations/20261004004000_power_bi_analytics.sql \
+  --file supabase/migrations/20261006001000_admin_model_health_access.sql
 ```
 
-Each migration is transactional and ends with database-side verification checks. The initial migration checks all domain tables, enabled RLS and policies, required indexes, review constraints, and tenant-scoped foreign keys. The ingestion migration adds the database-enforced duplicate fingerprint, row-level import results and counts, and an atomic review/analysis/job insertion function. The analysis migration adds model-provider tracking, analysis state and safe failure metadata, plus service-role-only atomic worker functions for claiming, completing, and failing/retrying analysis jobs. The analytics migration adds tenant-checked, filter-aware SQL aggregations for dashboards, topic and complaint catalogs, affected products/topics, time-series comparisons, and supporting indexes. The AI insights/model health migration stores database-selected evidence and provider/model metadata, records each completed or failed analysis attempt, and exposes tenant-checked insight storage and model-health aggregate functions. The Power BI migration adds a one-tenant-per-login reporting role map, row-level tenant isolation, least-privilege column grants, and PII-minimized analytics views. Do not apply a migration a second time; record each applied version in the deployment's migration history.
+Each migration is transactional and ends with database-side verification checks. The initial migration checks all domain tables, enabled RLS and policies, required indexes, review constraints, and tenant-scoped foreign keys. The ingestion migration adds the database-enforced duplicate fingerprint, row-level import results and counts, and an atomic review/analysis/job insertion function. The analysis migration adds model-provider tracking, analysis state and safe failure metadata, plus service-role-only atomic worker functions for claiming, completing, and failing/retrying analysis jobs. The analytics migration adds tenant-checked, filter-aware SQL aggregations for dashboards, topic and complaint catalogs, affected products/topics, time-series comparisons, and supporting indexes. The AI insights/model health migration stores database-selected evidence and provider/model metadata, records each completed or failed analysis attempt, and exposes tenant-checked insight storage and model-health aggregate functions. The Power BI migration adds a one-tenant-per-login reporting role map, row-level tenant isolation, least-privilege column grants, and PII-minimized analytics views. The administrator-access migration restricts model-health RPC access to organization owners and administrators. Do not apply a migration a second time; record each applied version in the deployment's migration history.
 
 ## Data-model decisions
 

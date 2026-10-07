@@ -404,7 +404,7 @@ class SupabaseReviewInsightRepository:
     def model_health_data(self, days: int) -> dict[str, Any]:
         response = self._execute(
             self._client.rpc(
-                "get_model_health",
+                "get_admin_model_health",
                 {
                     "p_organization_id": self._organization_id,
                     "p_days": days,

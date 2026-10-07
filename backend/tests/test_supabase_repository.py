@@ -312,7 +312,7 @@ def test_model_health_repository_calls_tenant_scoped_aggregate() -> None:
 
     assert result["reviews_processed"] == 2
     assert client.rpc_calls == [(
-        "get_model_health",
+        "get_admin_model_health",
         {
             "p_organization_id": str(organization_id),
             "p_days": 45,
@@ -385,7 +385,7 @@ def test_worker_database_client_uses_server_key_only_as_api_key(monkeypatch) -> 
 def test_organization_context_checks_membership_before_repository_access(monkeypatch) -> None:
     user_id = UUID("11111111-1111-4111-8111-111111111111")
     organization_id = UUID("22222222-2222-4222-8222-222222222222")
-    query = FakeQuery({"organization_id": str(organization_id)})
+    query = FakeQuery({"organization_id": str(organization_id), "role": "admin"})
 
     class FakeAuth:
         def get_user(self, token):
@@ -405,6 +405,7 @@ def test_organization_context_checks_membership_before_repository_access(monkeyp
 
     assert context.user_id == user_id
     assert context.organization_id == organization_id
+    assert context.membership_role == "admin"
     assert ("eq", ("organization_id", str(organization_id))) in query.calls
     assert ("eq", ("user_id", str(user_id))) in query.calls
 

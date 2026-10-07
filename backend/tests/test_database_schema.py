@@ -38,6 +38,12 @@ POWER_BI_MIGRATION = (
     / "migrations"
     / "20261004004000_power_bi_analytics.sql"
 )
+ADMIN_MODEL_HEALTH_MIGRATION = (
+    Path(__file__).resolve().parents[2]
+    / "supabase"
+    / "migrations"
+    / "20261006001000_admin_model_health_access.sql"
+)
 POWER_BI_ROOT = Path(__file__).resolve().parents[2] / "powerbi"
 
 
@@ -216,6 +222,17 @@ def test_power_bi_migration_is_tenant_scoped_and_pii_minimized() -> None:
     assert "has_table_privilege('powerbi_reader', 'public.' || source_table, 'SELECT')" in sql
 
 
+def test_admin_model_health_migration_revokes_member_rpc_access() -> None:
+    sql = ADMIN_MODEL_HEALTH_MIGRATION.read_text()
+    assert (
+        "REVOKE ALL ON FUNCTION public.get_model_health(uuid, integer)"
+        in sql
+    )
+    assert "app_private.is_org_admin(p_organization_id)" in sql
+    assert "GRANT EXECUTE ON FUNCTION public.get_admin_model_health" in sql
+    assert "'Administrator access denied'" in sql
+
+
 def test_power_bi_semantic_model_views_and_relationship_columns_match() -> None:
     model_root = POWER_BI_ROOT / "ReviewBand.SemanticModel"
     sql = POWER_BI_MIGRATION.read_text()
@@ -249,6 +266,40 @@ def test_power_bi_semantic_model_views_and_relationship_columns_match() -> None:
     assert (model_root / "database.tmdl").exists()
     assert (model_root / "model.tmdl").exists()
     assert (model_root / "expressions.tmdl").exists()
+
+
+def test_power_bi_model_import_partitions_and_expected_object_counts() -> None:
+    model_root = POWER_BI_ROOT / "ReviewBand.SemanticModel"
+    table_files = list((model_root / "tables").glob("*.tmdl"))
+    relationships = (model_root / "relationships.tmdl").read_text()
+
+    assert len(table_files) == 17
+    assert sum(
+        len(re.findall(r"(?m)^\s*partition [a-z_]+ = m$", path.read_text()))
+        for path in table_files
+    ) == 17
+    assert sum(
+        path.read_text().count("\n\t\tmode: import")
+        for path in table_files
+    ) == 17
+    assert sum(
+        len(re.findall(r"(?m)^\s*measure ", path.read_text()))
+        for path in table_files
+    ) == 39
+
+    relationship_ids = re.findall(r"(?m)^relationship (\S+)$", relationships)
+    endpoints = re.findall(
+        r"(?:fromColumn|toColumn):\s*([a-z_]+)\.([a-z_]+)",
+        relationships,
+    )
+    assert len(relationship_ids) == len(set(relationship_ids)) == 35
+    assert len(endpoints) == 70
+
+    for path in table_files:
+        contents = path.read_text()
+        assert f'Item="{path.stem}"' in contents
+        assert 'Schema="reviewband_bi"' in contents
+        assert "PostgreSQL.Database(PbiServer, PbiDatabase" in contents
 
 
 def test_power_bi_report_spec_and_measure_library_cover_required_pages() -> None:

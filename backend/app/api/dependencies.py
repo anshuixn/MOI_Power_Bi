@@ -49,7 +49,7 @@ def get_organization_context(
     try:
         membership = (
             client.table("memberships")
-            .select("organization_id")
+            .select("organization_id, role")
             .eq("organization_id", str(organization_id))
             .eq("user_id", str(user.id))
             .maybe_single()
@@ -64,6 +64,7 @@ def get_organization_context(
     return OrganizationContext(
         user_id=UUID(str(user.id)),
         organization_id=organization_id,
+        membership_role=membership.data["role"],
         client=client,
     )
 
@@ -126,7 +127,17 @@ def get_ai_insight_service(
     return AIInsightService(repository, provider)
 
 
+def require_model_health_admin(membership_role: str) -> None:
+    if membership_role not in {"owner", "admin"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Administrator access is required",
+        )
+
+
 def get_model_health_service(
+    context: OrganizationContext = Depends(get_organization_context),
     repository: ReviewInsightRepository = Depends(get_repository),
 ) -> ModelHealthService:
+    require_model_health_admin(context.membership_role)
     return ModelHealthService(repository)
