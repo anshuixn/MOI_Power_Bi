@@ -19,6 +19,13 @@ export type InsightKind = 'trend_detected' | 'opportunity' | 'alert' | 'anomaly'
 export type InsightImpact = 'low' | 'medium' | 'high' | 'critical'
 export type PerformanceTier = 'full' | 'lite' | 'static' | 'auto'
 export type DateRange = 'last_7_days' | 'last_30_days' | 'last_90_days' | 'custom'
+export type MembershipRole = 'owner' | 'admin' | 'client' | 'member' | 'viewer' | 'analyst' | 'normal'
+
+export interface MembershipContext {
+  role: MembershipRole | null
+  isAdmin: boolean
+  canAccessModelHealth: boolean
+}
 
 // ── Filter State ─────────────────────────────────────────────
 export interface FilterState {

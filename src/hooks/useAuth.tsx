@@ -16,6 +16,9 @@ interface AuthContextValue {
   loading: boolean
   isAuthenticated: boolean
   isConfigured: boolean
+  role: string | null
+  isAdmin: boolean
+  canAccessModelHealth: boolean
   signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>
   signUpWithEmail: (fullName: string, email: string, password: string) => Promise<{ error?: string; needsEmailConfirmation?: boolean }>
   signOut: () => Promise<boolean>
@@ -23,9 +26,20 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+const normalizeRole = (value?: string | null): string | null => {
+  if (!value) return null
+  const normalized = value.toLowerCase()
+
+  if (normalized === 'owner' || normalized === 'admin') return normalized
+  if (normalized === 'client' || normalized === 'member' || normalized === 'viewer' || normalized === 'analyst' || normalized === 'normal') return normalized
+
+  return null
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [role, setRole] = useState<string | null>(null)
 
   useEffect(() => {
     const client = supabase
@@ -38,18 +52,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const loadSession = async () => {
       const { data: { session: currentSession } } = await client.auth.getSession()
-      if (isMounted) {
-        setSession(currentSession)
-        setLoading(false)
-      }
+      if (!isMounted) return
+
+      setSession(currentSession)
+
+      const nextRole = normalizeRole(currentSession?.user?.app_metadata?.role ?? currentSession?.user?.user_metadata?.role ?? null)
+      setRole(nextRole)
+      setLoading(false)
     }
 
     void loadSession()
 
     const { data: { subscription } } = client.auth.onAuthStateChange((_event, nextSession) => {
-      if (isMounted) {
-        setSession(nextSession)
-      }
+      if (!isMounted) return
+      setSession(nextSession)
+      setRole(normalizeRole(nextSession?.user?.app_metadata?.role ?? nextSession?.user?.user_metadata?.role ?? null))
     })
 
     return () => {
@@ -111,16 +128,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return !error
   }, [])
 
+  const isAdmin = useMemo(() => role === 'owner' || role === 'admin', [role])
+  const canAccessModelHealth = useMemo(() => isAdmin, [isAdmin])
+
   const value = useMemo<AuthContextValue>(() => ({
     session,
     user: session?.user ?? null,
     loading,
     isAuthenticated: Boolean(session?.user),
     isConfigured: hasSupabaseConfig,
+    role,
+    isAdmin,
+    canAccessModelHealth,
     signInWithEmail,
     signUpWithEmail,
     signOut,
-  }), [loading, session, signInWithEmail, signUpWithEmail, signOut])
+  }), [canAccessModelHealth, isAdmin, loading, role, session, signInWithEmail, signUpWithEmail, signOut])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

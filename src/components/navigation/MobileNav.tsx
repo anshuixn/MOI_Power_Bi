@@ -6,6 +6,7 @@ import { NavLink } from 'react-router-dom'
 import { useState } from 'react'
 import { MoreHorizontal } from 'lucide-react'
 
+import { useAuth } from '@/hooks/useAuth'
 import dashboardIcon from '@/assets/icons/nav_dashboard.png'
 import reviewsIcon from '@/assets/icons/nav_reviews.png'
 import analyticsIcon from '@/assets/icons/nav_analytics.png'
@@ -28,6 +29,8 @@ const MORE_LINKS = [
 
 export function MobileNav() {
   const [isMoreOpen, setIsMoreOpen] = useState(false)
+  const { canAccessModelHealth } = useAuth()
+  const filteredMoreLinks = MORE_LINKS.filter(item => item.to !== '/model-health' || canAccessModelHealth)
 
   return (
     <>
@@ -56,7 +59,7 @@ export function MobileNav() {
               border: '1px solid rgba(196,181,253,0.3)',
             }}
           >
-            {MORE_LINKS.map(item => (
+            {filteredMoreLinks.map(item => (
               <NavLink
                 key={item.to}
                 to={item.to}

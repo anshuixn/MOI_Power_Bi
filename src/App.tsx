@@ -2,7 +2,7 @@
 // App Component — Routes & Providers
 // ============================================================
 
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppProvider } from '@/hooks/useApp'
 import { AuthProvider, useAuth } from '@/hooks/useAuth'
@@ -11,6 +11,31 @@ import { ToastProvider } from '@/components/feedback/Toast'
 import { RouteMetadata } from '@/components/seo/RouteMetadata'
 import { Login } from '@/pages/Login'
 import { Signup } from '@/pages/Signup'
+
+function ProtectedRoute({
+  children,
+  requireAdmin = false,
+}: {
+  children: ReactNode
+  requireAdmin?: boolean
+}) {
+  const { isAuthenticated, loading, isConfigured, canAccessModelHealth } = useAuth()
+  const location = useLocation()
+
+  if (loading) {
+    return PageLoader
+  }
+
+  if (!isConfigured || !isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+
+  if (requireAdmin && !canAccessModelHealth) {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  return children
+}
 
 // Lazy loaded routes for performance (code splitting)
 const Landing = lazy(() => import('@/pages/Landing').then(m => ({ default: m.Landing })))
@@ -63,7 +88,14 @@ function AppRouter() {
           <Route path="/topics" element={<TopicIntelligence />} />
           <Route path="/complaints" element={<Complaints />} />
           <Route path="/ai-insights" element={<AiInsights />} />
-          <Route path="/model-health" element={<ModelHealth />} />
+          <Route
+            path="/model-health"
+            element={
+              <ProtectedRoute requireAdmin>
+                <ModelHealth />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

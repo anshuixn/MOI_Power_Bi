@@ -9,6 +9,7 @@ import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { ReviewBandLogo } from './Logo'
 import { useApp } from '@/hooks/useApp'
+import { useAuth } from '@/hooks/useAuth'
 
 gsap.registerPlugin(useGSAP)
 
@@ -30,7 +31,7 @@ import modelHealthIcon from '@/assets/icons/nav_model_health.png'
 import reportsIcon from '@/assets/icons/nav_reports.png'
 import settingsIcon from '@/assets/icons/nav_settings.png'
 
-const NAV_ITEMS: NavItem[] = [
+const ALL_NAV_ITEMS: NavItem[] = [
   { label: 'Intro',       to: '/',            icon: introIcon },
   { label: 'Dashboard',   to: '/dashboard',   icon: dashboardIcon },
   { label: 'Reviews',     to: '/reviews',     icon: reviewsIcon },
@@ -175,10 +176,12 @@ function NavItemComponent({ item }: { item: NavItem }) {
 
 export function Sidebar() {
   const { prefersReducedMotion } = useApp()
+  const { canAccessModelHealth } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const sidebarRef = useRef<HTMLElement>(null)
   const sweepRef = useRef<HTMLDivElement>(null)
   const leaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const navItems = ALL_NAV_ITEMS.filter(item => item.to !== '/model-health' || canAccessModelHealth)
 
   // Track pointer position for subtle parallax
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -367,7 +370,7 @@ export function Sidebar() {
             zIndex: 1,
           }}
         >
-          {NAV_ITEMS.map(item => (
+          {navItems.map(item => (
             <NavItemComponent key={item.to} item={item} />
           ))}
         </nav>
